@@ -522,7 +522,7 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 
 	for(auto const &i : alreadyAsssignRider){
 		std::pair<bool, int> result =findInVector<Customer>(copyRiders,i);
-		if(result.first)
+		if(!result.first)
 			toBeMigratedRiders.push_back(copyRiders[result.second]);
 	}
 
@@ -550,10 +550,7 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 			cand=t_tempAssignedRider[popIndxDest][i];
 		if(cand == nullptr)  //rider i has not been assigned in destination
 			continue;
-		else if(cand==copyVehl){ //rider i has been assigned to copyVehl
-			std::cout<<"Copyrider: rider "<<cand->id()<<"already exist in the target vehl"<<std::endl;
-			continue;
-		}
+
 		std::cout<<"S:"<<popIndxSrc<<" D:"<<popIndxDest<<" Vehl:"<<r->id()<<" Rider:"<<i.id()<<std::endl;
 		if(t_tempSolution[popIndxDest].count(cand)){
 			for(auto j=(t_tempSolution[popIndxDest][cand]).begin();j!=(t_tempSolution[popIndxDest][cand]).end(); j++){
