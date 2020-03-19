@@ -4,7 +4,7 @@ METIS_DIR = /usr/local/lib
 # ------------------------------------------------------------------------------
 
 CXX = g++
-CFLAGS = -Wall -Wextra -std=c++11 -O3 -g -c -I$(INCLUDE_DIR) -o $@
+CFLAGS = -Wall -Wextra -std=c++11 -O0 -g -c -I$(INCLUDE_DIR) -o $@
 LFLAGS = -Wall
 PTHREAD = -pthread -lrt
 LDL = -ldl

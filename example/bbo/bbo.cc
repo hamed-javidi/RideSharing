@@ -45,7 +45,7 @@ std::pair<bool, int > findInVector(const std::vector<T>  & vecOfElements, const 
 }
 
 void BBO::doSort(){
-	std::cout<<std::endl<<"SORTING..."<<std::endl;
+	print<<std::endl<<"SORTING..."<<std::endl;
 	if(solutions.size() <=1)
 		return;
 	vec_t<int> idx(solutionsCosts.size());
@@ -64,14 +64,14 @@ void BBO::doSort(){
 	auto tcandlist=CandidateList;
 	auto tgrid=local_grid;
 	int j=0;
-	if(!(solutionsCosts.size() == solutions.size() && solutions.size() == assignedRider.size() &&  solutions.size() ==  unassignedRider.size() && solutions.size()== lookupVehicle.size()-NumberOfElites && solutions.size()== CandidateList.size())){
-		std::cout<<std::endl<<"CRITICAL ERROR SIZING"<<std::endl;
-		std::cout<<solutionsCosts.size()<<std::endl;
-		std::cout<<solutions.size()<<std::endl;
-		std::cout<<assignedRider.size()<<std::endl;
-		std::cout<<unassignedRider.size()<<std::endl;
-		std::cout<<lookupVehicle.size()<<std::endl;
-		std::cout<<CandidateList.size()<<std::endl;
+	if(!(solutionsCosts.size() == solutions.size() && solutions.size() == assignedRider.size() &&  solutions.size() ==  unassignedRider.size() && solutions.size()== CandidateList.size())){
+		print<<std::endl<<"CRITICAL ERROR SIZING"<<std::endl;
+		print<<solutionsCosts.size()<<std::endl;
+		print<<solutions.size()<<std::endl;
+		print<<assignedRider.size()<<std::endl;
+		print<<unassignedRider.size()<<std::endl;
+		print<<lookupVehicle.size()<<std::endl;
+		print<<CandidateList.size()<<std::endl;
 
 	}
 	for(auto &i : idx){
@@ -92,12 +92,12 @@ bool BBO::checkSCH(int solutionIdx, MutableVehicleSptr const & r){
 		if(i.second == r)
 			sum++;
 		else if(i.second->id() == r->id()){
-			std::cout<<"Consistency Error";
+			print<<"	Consistency Error";
 			throw;
 		}
 
 	if((r->schedule().data().size() != solutions[solutionIdx][r].size()) || (r->schedule().data().size() != sum)){
-		std::cout << std::endl<<"CHK--OK"<<std::endl;
+		print << "	CHK--OK"<<std::endl;
 		return 0;
 	}
 	return 1;
@@ -108,12 +108,12 @@ bool BBO::checkSCHTemp(int solutionIdx, MutableVehicleSptr const & r, vec_t<dict
 		if(i.second == r)
 			sum++;
 		else if(i.second->id() == r->id()){
-			std::cout<<"Consistency Error CHK-T";
+			print<<"	Consistency Error CHK-T";
 			throw;
 		}
 
 	if((r->schedule().data().size() != tempSolutions[solutionIdx][r].size()) || (r->schedule().data().size() != sum)){
-		std::cout << std::endl<<"CHK--OK"<<std::endl;
+		print <<"	CHK--OK"<<std::endl;
 		return 0;
 	}
 	return 1;
@@ -124,7 +124,7 @@ BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 	matched=false;
 	debugMode=true;
 	problemDimension=0;
-	this->batch_time() = 60;
+	this->batch_time() = 30;
 
 	for (uint8_t i = 1; i <= PopulationSize; ++i) {
 		mu.push_back((PopulationSize + 1 - i) / (double)(PopulationSize + 1)); // emigration rate
@@ -133,7 +133,7 @@ BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 	//this->gen.seed(rd());
 	//TODO: comment the below line and uncomment the above line
 	this->gen.seed(1);
-	std::cout<<"Solution size: "<<solutions.size()<<std::endl;
+	print<<"Solution size: "<<solutions.size()<<std::endl;
 	unassignedRider.reserve(PopulationSize);
 	assignedRider.reserve(PopulationSize);
 	EliteAssignedRider.reserve(NumberOfElites);
@@ -159,8 +159,8 @@ void BBO::listen(bool skip_assigned, bool skip_delayed) {
 }
 
 void BBO::bbo_init(){
-	std::cout<<std::endl<<"Initializing...";
-	std::cout<<std::endl<<"Solution size::: "<<solutions.size()<<std::endl;
+	print<<std::endl<<"Initializing...";
+	print<<std::endl<<"Solution size::: "<<solutions.size()<<std::endl;
 //	dict<MutableVehicleSptr, vec_t<Customer>> Temp; //A temporary map to be used below
 //	dict<Customer, MutableVehicleSptr> temp1;
 //	dict<Customer, vec_t<MutableVehicleSptr>> temp2;
@@ -178,7 +178,7 @@ void BBO::bbo_init(){
 //		lookupVehicle.push_back(temp3);
 //		unassignedRider.push_back(temp4);
 		local_grid.push_back(this->grid_);  // make a deep copy
-		std::cout<<indx<<",";
+		print<<indx<<",";
 		for (const Customer& cust : this->customers()) {
 			vec_t<MutableVehicleSptr> candidates=local_grid[indx].within(pickup_range(cust), cust.orig());
 			if(indx >= CandidateList.size())
@@ -195,7 +195,7 @@ void BBO::bbo_init(){
 					lookupVehicle[indx][cand->id()] = cand;
 			}
 
-			std::cout<<"Exit";
+			print<<"Exit";
 			bool initial=false;
 			while (!candidates.empty() && !initial) {
 				auto k = candidates.begin();
@@ -203,21 +203,21 @@ void BBO::bbo_init(){
 				std::advance(k, m(this->gen));
 				MutableVehicleSptr cand = *k;
 				candidates.erase(k);
-				std::cout<<"erase";
+				print<<"erase";
 
 				if (cand->schedule().data().size() < 8) {
 					sop_insert(*cand, cust, sch, rte);
-					std::cout<<"sop ";
+					print<<"sop ";
 					if (chkcap(cand->capacity(), sch) && chktw(sch, rte)) {
 						if(checkVehlStopsDuplication(cand,cust)){
-							std::cout<<"Sch Duplication"<<std::endl;
+							print<<"Sch Duplication"<<std::endl;
 							throw;
 						}
 
 						cand->set_sch(sch);  										// update grid version of the candidate
 						cand->set_rte(rte);
 						cand->reset_lvn();
-						std::cout<<"chkcap + ";
+						print<<"chkcap + ";
 						if(indx >= solutions.size())
 							solutions.push_back({{cand,{cust}}});
 						else
@@ -227,7 +227,7 @@ void BBO::bbo_init(){
 						else if(assignedRider[indx].count(cust) == 0)
 							assignedRider[indx][cust]=cand;
 						else{
-							std::cout<<std::endl<<"Error in inserting a record to assignRider list: current cust is exist in the list"<<std::endl;
+							print<<std::endl<<"Error in inserting a record to assignRider list: current cust is exist in the list"<<std::endl;
 							throw;
 						}
 						if(debugMode)
@@ -262,7 +262,7 @@ void BBO::bbo_init(){
 
 	problemDimension=CandidateList[0].size();
 //	if(!checkVehlStopsWithRiders(solutions)){
-//		std::cout<<"NOT MATCH"<<std::endl;
+//		print<<"NOT MATCH"<<std::endl;
 //		throw;
 //	}
 }
@@ -317,7 +317,7 @@ void BBO::bbo_body(){
 	    for (int k = 0; k < PopulationSize; ++k) {
 
 			for(auto const &r : assignedRider[k]){
-				//std::cout<<k<<"= " <<r.first.id()<<" "<<r.second->id()<<std::endl;
+				//print<<k<<"= " <<r.first.id()<<" "<<r.second->id()<<std::endl;
 				//Should we immigrate?
 
 				if( rand() < lambda[k] ){
@@ -335,18 +335,18 @@ void BBO::bbo_body(){
 
 	                if(SelectIndex!=k){
 	                	if(debugMode)
-	                		std::cout<<std::endl<<"Population "<<k<<"= " <<"Rider "<<r.first.id()<<" -> Driver "<<r.second->id()<<", Transfer to Population "<<SelectIndex<<std::endl;
+	                		print<<std::endl<<"Population "<<k<<"= " <<"Rider "<<r.first.id()<<" -> Driver "<<r.second->id()<<", Transfer to Population "<<SelectIndex<<std::endl;
 	                	if(!migrate_vehicle_based(SelectIndex, k, r.second, tempSolutions,tempAssignedRider, tempUnassignedRider))
-	                		std::cout<<"migrate is not done!"<<std::endl;
+	                		print<<"migrate is not done!"<<std::endl;
 //	                	if(!checkVehlStopsWithRiders(tempSolutions)){
-//	                		std::cout<<"NOT MATCH"<<std::endl;
+//	                		print<<"NOT MATCH"<<std::endl;
 //	                		throw;
 //	                	}
 	                	//solution_show();
 	                }
 
 //	                if (solutions[SelectIndex].count(r.second) == 0) {
-//	                	//std::cout<<"AAA"<<std::endl;
+//	                	//print<<"AAA"<<std::endl;
 //						vec_t<Customer> assignments = {};
 //						solutions[SelectIndex][r.second] = assignments;
 //					}
@@ -380,14 +380,14 @@ void BBO::bbo_body(){
 
 		//doSort();
 //		if(!checkVehlStopsWithRiders(solutions)){
-//			std::cout<<"NOT MATCH"<<std::endl;
+//			print<<"NOT MATCH"<<std::endl;
 //			throw;
 //		}
 		minimumCostPerGeneration.push_back(solutionsCosts[0]);
-		std::cout<<"Minimum of the generation "<< Generation<< " is: " <<minimumCostPerGeneration[Generation]<<std::endl;
+		print<<"Minimum of the generation "<< Generation<< " is: " <<minimumCostPerGeneration[Generation]<<std::endl;
 		if(debugMode){
 			solution_show();
-			std::cout<<std::endl;
+			print<<std::endl;
 		}
 
 	}
@@ -399,7 +399,7 @@ bool BBO::checkVehlStopsWithRiders(const vec_t<dict<MutableVehicleSptr, vec_t<Cu
 	for(auto const & i: sol){
 		for(auto const & rec : i){
 			if((rec.first->schedule().size()-2) != rec.second.size()*2){
-				std::cout<<"Solution: "<<solCnt<<" , Vehl id: "<<rec.first->id()<<std::endl;
+				print<<"Solution: "<<solCnt<<" , Vehl id: "<<rec.first->id()<<std::endl;
 				return 0;
 			}
 		}
@@ -410,7 +410,7 @@ bool BBO::checkVehlStopsWithRiders(const vec_t<dict<MutableVehicleSptr, vec_t<Cu
 bool BBO::checkVehlStopsDuplication(const MutableVehicleSptr &vehl, const Customer & cust){
 	for(auto const & i : vehl->schedule().data())
 		if(i.owner()==cust.id()){
-			std::cout<<"Rider "<<cust.id()<<" already exist in the vehl  "<<vehl->id()<<std::endl;
+			print<<"Rider "<<cust.id()<<" already exist in the vehl  "<<vehl->id()<<std::endl;
 			return 1;
 		}
 
@@ -468,23 +468,28 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 									vec_t<dict<Customer, MutableVehicleSptr>> &tempAssignedRider,
 									vec_t<vec_t<Customer>> &tempUnassignedRider){
 	//In case of ROLL BACK migration
-	std::cout<<std::endl<<"	Migration function is started:"<<std::endl;
-	auto t_tempSolution=tempSolutions;
-	auto t_tempAssignedRider=tempAssignedRider;
-	auto t_tempUnassignedRider=tempUnassignedRider;
-
+	if(debugMode){
+		print << "	step 1"<<std::endl;
+		print<<"	Migration function is started:"<<std::endl;
+	}
+	vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> t_tempSolution;
+	vec_t<dict<Customer, MutableVehicleSptr>> t_tempAssignedRider;
+	vec_t<vec_t<Customer>> t_tempUnassignedRider;
+	t_tempSolution=tempSolutions;
+	t_tempAssignedRider=tempAssignedRider;
+	t_tempUnassignedRider=tempUnassignedRider;
+	if(debugMode)
+		print<<"	S:"<<popIndxSrc<<" D:"<<popIndxDest<<" Vehl:"<<r->id()<<std::endl;
 	//create a new vehicle based on selected vehicle if it does not exist in the destination
 
 	vec_t<Customer> copyRiders={};
 	MutableVehicleSptr const copyVehl=lookupVehicle[popIndxDest].at(r->id());
 	vec_t<Customer> alreadyAsssignRider={},reassignRiders={},toBeMigratedRiders={};
 
-
-
 	if(t_tempSolution[popIndxSrc].count(r))
 		for(auto const &i: t_tempSolution[popIndxSrc][r])
 			copyRiders.push_back(i);
-	print << "	step 1"<<std::endl;
+
 	// 1- Does the	selected rider's vehicle exist in the target solution?
 	if(t_tempSolution[popIndxDest].count(copyVehl)==0){
 
@@ -520,13 +525,18 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 			reassignRiders.push_back(i);
 	}
 
-	for(auto const &i : alreadyAsssignRider){
-		std::pair<bool, int> result =findInVector<Customer>(copyRiders,i);
+	for(auto const &i : copyRiders){
+		std::pair<bool, int> result =findInVector<Customer>(alreadyAsssignRider,i);
+		print <<result.first<<"  "<<result.second<<std::endl;
 		if(!result.first)
-			toBeMigratedRiders.push_back(copyRiders[result.second]);
+			toBeMigratedRiders.push_back(i);
 	}
 
 	if(debugMode){
+		print <<"	copyRiders: ";
+				for(auto const &i : copyRiders){
+					print <<i.id()<<", ";
+				}
 		print <<"	AlreadyAssigndRiders: ";
 		for(auto const &i : alreadyAsssignRider){
 			print <<i.id()<<", ";
@@ -540,9 +550,10 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 			print <<i.id()<<", ";
 		}
 		print <<std::endl;
+		print <<"	step 2"<<std::endl;
 	}
 	//2. Has any of the copy riders been assigned to some vehicles else in the target solution?
-	print <<"	step 2"<<std::endl;
+
 	//2.YES, deassign them from those vehicles in the target solution
 	for(auto const &i: toBeMigratedRiders){
 		MutableVehicleSptr cand=nullptr;
@@ -550,128 +561,104 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 			cand=t_tempAssignedRider[popIndxDest][i];
 		if(cand == nullptr)  //rider i has not been assigned in destination
 			continue;
-
-		std::cout<<"S:"<<popIndxSrc<<" D:"<<popIndxDest<<" Vehl:"<<r->id()<<" Rider:"<<i.id()<<std::endl;
 		if(t_tempSolution[popIndxDest].count(cand)){
-			for(auto j=(t_tempSolution[popIndxDest][cand]).begin();j!=(t_tempSolution[popIndxDest][cand]).end(); j++){
-				std::cout<<"j="<<j->id()<<std::endl;
-				if(j->id() == i.id()){
-					t_tempSolution[popIndxDest][cand].erase(j);
-					//update vehicle's route and schedule
-
-					std::vector<Stop>  sch_after_rem = cand->schedule().data();
-					std::vector<Wayp> rte_after_rem;
-					opdel(sch_after_rem, j->id());
-					route_through(sch_after_rem, rte_after_rem);
-
-					// Add the traveled distance to rte_after_rem <<<<<
-					for (Wayp& wp : rte_after_rem)
-						wp.first += cand->route().dist_at(cand->idx_last_visited_node());
-
-					cand->set_sch(sch_after_rem);
-					cand->set_rte(rte_after_rem);
-					cand->reset_lvn();
-					t_tempAssignedRider[popIndxDest].erase(*j);
-					if(checkVehlStopsDuplication(cand,*j)){
-						std::cout<<"Sch Duplication"<<std::endl;
-						throw;
-					}
-					checkSCHTemp(popIndxDest,cand, t_tempAssignedRider, t_tempSolution);
-					break;
-				}
+			t_tempSolution[popIndxDest][cand].erase(std::remove(t_tempSolution[popIndxDest][cand].begin(), t_tempSolution[popIndxDest][cand].end(), i), t_tempSolution[popIndxDest][cand].end());
+			if(t_tempSolution[popIndxDest][cand].size() == 0 ){
+				t_tempSolution[popIndxDest].erase(cand);
+				print <<"	Driver "<<cand->id()<<"is removed from solution "<<popIndxDest<<std::endl;
 			}
+			std::vector<Stop>  sch_after_rem = cand->schedule().data();
+			std::vector<Wayp> rte_after_rem;
+			opdel(sch_after_rem, i.id());
+			route_through(sch_after_rem, rte_after_rem);
+
+			// Add the traveled distance to rte_after_rem <<<<<
+			for (Wayp& wp : rte_after_rem)
+				wp.first += cand->route().dist_at(cand->idx_last_visited_node());
+
+			cand->set_sch(sch_after_rem);
+			cand->set_rte(rte_after_rem);
+			cand->reset_lvn();
+			t_tempAssignedRider[popIndxDest].erase(i);
+			if(checkVehlStopsDuplication(cand,i)){
+				print<<"	Sch Duplication"<<std::endl;
+				throw;
+			}
+			checkSCHTemp(popIndxDest,cand, t_tempAssignedRider, t_tempSolution);
+			if(debugMode)
+				print <<"	Rider "<<i.id()<<"is deassigned from "<<cand->id()<<std::endl;
 		}
 		else
-			std::cout<<"Rider "<<i.id()<<"is already unassigned in target solution";
+			print <<"	Error "<<i.id()<<std::endl;
 	}
-	std::cout<<"step 3"<<std::endl;
+	if(debugMode)
+		print<<"	step 3"<<std::endl;
 	// 3. Does some riders else already assigned to the selected vehicle in the target solution?
 	//3. YES: Deassign them and put them to a waiting list to reassign later
 
 	for(const auto &i: reassignRiders){
 		//MutableVehicleSptr cand=t_tempAssignedRider[popIndxDest][i];
 		if(t_tempSolution[popIndxDest].count(copyVehl)){
+			t_tempSolution[popIndxDest][copyVehl].erase(std::remove(t_tempSolution[popIndxDest][copyVehl].begin(), t_tempSolution[popIndxDest][copyVehl].end(), i), t_tempSolution[popIndxDest][copyVehl].end());
 
-			for(auto j=(t_tempSolution[popIndxDest][copyVehl]).begin();j!=(t_tempSolution[popIndxDest][copyVehl]).end(); j++){
-				if(j->id() == i.id()){
-					t_tempSolution[popIndxDest][copyVehl].erase(j);
-					//update vehicle's route and schedule
-					std::vector<Stop>  sch_after_rem = copyVehl->schedule().data();
-					std::vector<Wayp> rte_after_rem;
-					opdel(sch_after_rem, j->id());
-					route_through(sch_after_rem, rte_after_rem);
+			//update vehicle's route and schedule
+			std::vector<Stop>  sch_after_rem = copyVehl->schedule().data();
+			std::vector<Wayp> rte_after_rem;
+			opdel(sch_after_rem, i.id());
+			route_through(sch_after_rem, rte_after_rem);
 
-					// Add the traveled distance to rte_after_rem <<<<<
-					for (Wayp& wp : rte_after_rem)
-						wp.first += copyVehl->route().dist_at(copyVehl->idx_last_visited_node());
+			// Add the traveled distance to rte_after_rem <<<<<
+			for (Wayp& wp : rte_after_rem)
+				wp.first += copyVehl->route().dist_at(copyVehl->idx_last_visited_node());
 
-					copyVehl->set_sch(sch_after_rem);
-					copyVehl->set_rte(rte_after_rem);
-					copyVehl->reset_lvn();
-					t_tempAssignedRider[popIndxDest].erase(*j);
-					if(checkVehlStopsDuplication(copyVehl,*j)){
-						std::cout<<"Sch Duplication"<<std::endl;
-						throw;
-					}
-					checkSCHTemp(popIndxDest,copyVehl, t_tempAssignedRider, t_tempSolution);
-					break;
-				}
-			}
-		}
-	}
-
-	print <<"	step 3-2"<<std::endl;
-	//3. No: Assign the selected riders to the selected vehicle in the target solution
-	for(const auto &i: copyRiders){
-		auto it = find_if(alreadyAsssignRider.begin(),alreadyAsssignRider.end(), [&i](const Customer& obj) {return obj.id() == i.id();});
-
-		if (it != alreadyAsssignRider.end())
-			continue;
-		else{
-			sop_insert(copyVehl, i, sch, rte);
+			copyVehl->set_sch(sch_after_rem);
+			copyVehl->set_rte(rte_after_rem);
+			copyVehl->reset_lvn();
+			t_tempAssignedRider[popIndxDest].erase(i);
 			if(checkVehlStopsDuplication(copyVehl,i)){
-				std::cout<<"Sch Duplication"<<std::endl;
+				print<<"	Sch Duplication"<<std::endl;
 				throw;
 			}
-			copyVehl->set_sch(sch);
-			copyVehl->set_rte(rte);
-			copyVehl->reset_lvn();
-			t_tempAssignedRider[popIndxDest][i]=copyVehl;
-			t_tempSolution[popIndxDest][copyVehl].push_back(i);
 			checkSCHTemp(popIndxDest,copyVehl, t_tempAssignedRider, t_tempSolution);
+			if(debugMode)
+				print <<"	Rider "<<i.id()<<"is deassigned from "<<copyVehl->id()<<std::endl;
 		}
 	}
-	std::cout<<"step 4"<<std::endl;
-	//4. Is the waiting list empty?
-	if(reassignRiders.size() != 0){
-
-		//4. NO: Reassign them to vehicles which the best candidate in the target solution
-		for(auto const &i: reassignRiders)
-			if(!Greedy_Assignment(popIndxDest,i, t_tempSolution, t_tempAssignedRider,t_tempUnassignedRider)){
-				//exit without saving migration results
-				//return 0;
-				;
-			}
-	}
-
-	//4. YES: Delete empty vehicles	from target solution
-	for(auto i= t_tempSolution[popIndxDest].begin(); i!=t_tempSolution[popIndxDest].end(); )
-		if(i->second.size() == 0 )
-			i = t_tempSolution[popIndxDest].erase(i);
-		else if(i->first->schedule().data().size()<=1){
-			std::cout<<"Something wrong  "<<i->first->schedule().data().size()<<std::endl;
+	if(debugMode)
+		print <<"	step 3-2"<<std::endl;
+	//3. No: Assign the selected riders to the selected vehicle in the target solution
+	for(const auto &i: toBeMigratedRiders){
+		sop_insert(copyVehl, i, sch, rte);
+		if(checkVehlStopsDuplication(copyVehl,i)){
+			print<<"Sch Duplication"<<std::endl;
 			throw;
 		}
-		else
-			++i;
-	std::cout<<"step saving"<<std::endl;
-	//exit with saving migration results
+		copyVehl->set_sch(sch);
+		copyVehl->set_rte(rte);
+		copyVehl->reset_lvn();
+		t_tempAssignedRider[popIndxDest][i]=copyVehl;
+		t_tempSolution[popIndxDest][copyVehl].push_back(i);
+		checkSCHTemp(popIndxDest,copyVehl, t_tempAssignedRider, t_tempSolution);
+		if(debugMode)
+			print <<"	Rider "<<i.id()<<"is assigned to "<<copyVehl->id()<<std::endl;
+	}
+	if(debugMode)
+		print<<"	step 4"<<std::endl;
+	//4. Is the waiting list empty?
+
+	//4. NO: Reassign them to vehicles which the best candidate in the target solution
+	for(auto const &i: reassignRiders)
+		if(!Greedy_Assignment(popIndxDest,i, t_tempSolution, t_tempAssignedRider,t_tempUnassignedRider)){
+			//exit without saving migration results
+			//return 0;
+			;
+	}
+	if(debugMode)
+		print <<"	step saving"<<std::endl;
 	tempSolutions=t_tempSolution;
 	tempAssignedRider=t_tempAssignedRider;
 	tempUnassignedRider=t_tempUnassignedRider;
-	std::cout<<std::endl<<"exit migration"<<std::endl;
 	return 1;
-
 }
 
 bool BBO::Greedy_Assignment(int solIndex,const Customer &cust,
@@ -682,7 +669,7 @@ bool BBO::Greedy_Assignment(int solIndex,const Customer &cust,
 	this->best_cost = InfInt;
 	this->best_sch.clear();
 	this->best_rte .clear();
-	for (const MutableVehicleSptr& cand : CandidateList[solIndex].at(cust)) {
+	for (auto const & cand : CandidateList[solIndex].at(cust)) {
 		// Speed heuristic: try only if vehicle's current schedule has < 8 customer stops
 		if (cand->schedule().data().size() < 8) {
 			DistInt curCost= cand->route().cost();
@@ -702,14 +689,15 @@ bool BBO::Greedy_Assignment(int solIndex,const Customer &cust,
 
 	}
 	if(!match){
-		std::cout<<"Rider "<<cust.id()<<"left unassigned"<<std::endl;
+		if(debugMode)
+			print <<"	Rider "<<cust.id()<<"left unassigned"<<std::endl;
 		tempUnassignedRider[solIndex].push_back(cust);
 
 		return 0;
 	}
 	else{
 		if(checkVehlStopsDuplication(best_vehl,cust)){
-			std::cout<<"Sch Duplication"<<std::endl;
+			print<<"Sch Duplication"<<std::endl;
 			throw;
 		}
 		best_vehl->set_sch(best_sch);  										// update grid version of the candidate
@@ -719,7 +707,8 @@ bool BBO::Greedy_Assignment(int solIndex,const Customer &cust,
 		tempSolutions[solIndex][best_vehl].push_back(cust);  		// update our copy of the candidate
 		tempAssignedRider[solIndex][cust]=best_vehl;
 		checkSCHTemp(solIndex,best_vehl, tempAssignedRider, tempSolutions);
-		std::cout<<"Rider "<<cust.id()<<" reassign to driver : "<<best_vehl->id()<<"with cost "<<best_cost<<std::endl;
+		if(debugMode)
+			print <<"	Rider "<<cust.id()<<" Assign to driver : "<<best_vehl->id()<<" with cost "<<best_cost<< " using Greedy"<<std::endl;
 	}
 	return 1;
 }
@@ -761,7 +750,7 @@ void BBO::match() {
 
 	this->reset_workspace();
 
-	std::cout<<"Batch #: "<<(++(this->batchCounter))<<", requests: "<<this->customers().size()<< std::endl;
+	print<<"Batch #: "<<(++(this->batchCounter))<<", requests: "<<this->customers().size()<< std::endl;
 	bbo_init();
 	if(debugMode){
 		solution_show();
@@ -771,7 +760,7 @@ void BBO::match() {
 				for(const auto & j:solutions[i])
 					if(compare_shared_ptr(j.first, lookupVehicle[i].at(j.first->id())))
 						sum[i]++;
-				std::cout<<sum[i]<<std::endl;
+				print<<sum[i]<<std::endl;
 			}
 		}
 	}
@@ -827,31 +816,31 @@ uint16_t dictSize(dict<MutableVehicleSptr, vec_t<Customer>> d){
 void BBO::solution_show(){
 //	int indx=0;
 //	for(auto & i :assignedRider){
-//		std::cout<<std::endl<<"Cost="<<solutionsCosts[indx]<<", ";
-//		std::cout<<"Solution:"<<indx++<<" ";
+//		print<<std::endl<<"Cost="<<solutionsCosts[indx]<<", ";
+//		print<<"Solution:"<<indx++<<" ";
 //		for(auto &j : i){
-//			std::cout<<j.first.id()<<"->"<<j.second->id()<<", ";
+//			print<<j.first.id()<<"->"<<j.second->id()<<", ";
 //		}
 //
 //	}
-//	std::cout<<std::endl;
+//	print<<std::endl;
 
 
 		for(int i=0;i<PopulationSize;i++){
 
-			std::cout<<std::endl<<"Cost="<<solutionsCosts[i]<<", ";
-			std::cout<<"Solution:"<<i<<" Drivers: "<<solutions[i].size()<<", Riders: "<<dictSize(solutions[i])<<"\t";
+			print<<std::endl<<"Cost="<<solutionsCosts[i]<<", ";
+			print<<"Solution:"<<i<<" Drivers: "<<solutions[i].size()<<", Riders: "<<dictSize(solutions[i])<<"\t";
 			for(const auto & j : solutions[i]){
-				std::cout<<j.first->id()<<"->";
+				print<<j.first->id()<<"->";
 				for(const auto k : j.second){
 
-					std::cout<<k.id()<<(compare_shared_ptr(j.first, lookupVehicle[i].at(j.first->id()))?"-O-, ":"-X-, ");
+					print<<k.id()<<(compare_shared_ptr(j.first, lookupVehicle[i].at(j.first->id()))?"-O-, ":"-X-, ");
 				}
 
 			}
 
 		}
-		std::cout<<std::endl;
+		print<<std::endl;
 }
 
 
