@@ -1,5 +1,5 @@
-INCLUDE_DIR = /home/hamed/Desktop/Cargo-master/include
-CARGO_DIR = /home/hamed/Desktop/Cargo-master/lib
+INCLUDE_DIR = ../include
+CARGO_DIR = ../lib
 METIS_DIR = /usr/local/lib
 # ------------------------------------------------------------------------------
 

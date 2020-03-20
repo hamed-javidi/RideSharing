@@ -50,7 +50,7 @@ RSAlgorithm::RSAlgorithm(const std::string& name, bool fifo)
   this->timeout_ = 1;
   //Hamed
   batchCounter=0;
-
+  avgCostImprovement=0;
   prepare_stmt(sql::ssr_stmt, &ssr_stmt);
   prepare_stmt(sql::sss_stmt, &sss_stmt);
   prepare_stmt(sql::uro_stmt, &uro_stmt);
