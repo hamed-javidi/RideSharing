@@ -159,43 +159,26 @@ void BBO::listen(bool skip_assigned, bool skip_delayed) {
 }
 
 void BBO::bbo_init(){
-	print<<std::endl<<"Initializing...";
-	print<<std::endl<<"Solution size::: "<<solutions.size()<<std::endl;
-//	dict<MutableVehicleSptr, vec_t<Customer>> Temp; //A temporary map to be used below
-//	dict<Customer, MutableVehicleSptr> temp1;
-//	dict<Customer, vec_t<MutableVehicleSptr>> temp2;
-//	dict<VehlId, MutableVehicleSptr> temp3;
-//	vec_t<Customer> temp4;
-		//1- filling CandidateList for each rider
+	if(debugMode)
+		print<<std::endl<<"Initializing...";
 
-
+	//1- filling CandidateList for each rider
 	//we need to generate some population by using any algorithm or randomly
 	for (int indx = 0; indx < PopulationSize; ++indx) {
-
-//		solutions.push_back(Temp);
-//		assignedRider.push_back(temp1);
-//		CandidateList.push_back(temp2);
-//		lookupVehicle.push_back(temp3);
-//		unassignedRider.push_back(temp4);
 		local_grid.push_back(this->grid_);  // make a deep copy
-		print<<indx<<",";
 		for (const Customer& cust : this->customers()) {
 			vec_t<MutableVehicleSptr> candidates=local_grid[indx].within(pickup_range(cust), cust.orig());
 			if(indx >= CandidateList.size())
 				CandidateList.push_back({{cust,candidates}});
 			else
 				CandidateList[indx][cust] = candidates;
-
 			// TODO: Add to local vehicle lookup (we need it during bbo) it needs to be improved. It does an inefficiently work
-
 			for (const MutableVehicleSptr cand : candidates){
 				if(indx >= lookupVehicle.size())
 					lookupVehicle.push_back({{cand->id(), cand}});
 				else
 					lookupVehicle[indx][cand->id()] = cand;
 			}
-
-			print<<"Exit";
 			bool initial=false;
 			while (!candidates.empty() && !initial) {
 				auto k = candidates.begin();
@@ -203,21 +186,16 @@ void BBO::bbo_init(){
 				std::advance(k, m(this->gen));
 				MutableVehicleSptr cand = *k;
 				candidates.erase(k);
-				print<<"erase";
-
 				if (cand->schedule().data().size() < 8) {
 					sop_insert(*cand, cust, sch, rte);
-					print<<"sop ";
 					if (chkcap(cand->capacity(), sch) && chktw(sch, rte)) {
 						if(checkVehlStopsDuplication(cand,cust)){
 							print<<"Sch Duplication"<<std::endl;
 							throw;
 						}
-
 						cand->set_sch(sch);  										// update grid version of the candidate
 						cand->set_rte(rte);
 						cand->reset_lvn();
-						print<<"chkcap + ";
 						if(indx >= solutions.size())
 							solutions.push_back({{cand,{cust}}});
 						else
@@ -227,27 +205,29 @@ void BBO::bbo_init(){
 						else if(assignedRider[indx].count(cust) == 0)
 							assignedRider[indx][cust]=cand;
 						else{
-							print<<std::endl<<"Error in inserting a record to assignRider list: current cust is exist in the list"<<std::endl;
+							print<<"	Error in inserting a record to assignRider list: current cust is exist in the list"<<std::endl;
 							throw;
 						}
 						if(debugMode)
-							print << "		End of Init function"<<std::endl;
+							print << "	Rider "<<cust.id()<<"is assigned to driver "<<cand->id()<<std::endl;
 						initial = true;
 						checkSCH(indx, cand);
 					}
 					else {
-						if(debugMode)
-							print << "      skipping due to infeasible" << std::endl;
+//						if(debugMode)
+//							print << "      skipping due to infeasible" << std::endl;
 					}
 				}
 				else {
-					if(debugMode)
-						print << "      skipping due to sched_max" << std::endl;
+//					if(debugMode)
+//						print << "      skipping due to sched_max" << std::endl;
 				}
+//				if (this->timeout(this->timeout_0))
+//					break;
 			}
 			if(!initial){
 				if(debugMode)
-					print << "		Rider " << cust.id() << "left unassigned" << std::endl;
+					print << "	Rider " << cust.id() << "left unassigned" << std::endl;
 				if(indx >= unassignedRider.size())
 					unassignedRider.push_back({cust});
 				else
@@ -257,14 +237,10 @@ void BBO::bbo_init(){
 
 		costUpdate(indx);
 		if(debugMode)
-			print << "		Solution " << indx << ", Assigned Rider: " << assignedRider[indx].size() << ", Unassigned: " <<unassignedRider[indx].size() << std::endl;
+			print << "	Solution " << indx << ", Assigned Rider: " << assignedRider[indx].size() << ", Unassigned: " <<unassignedRider[indx].size() << std::endl;
 	}
 
-	problemDimension=CandidateList[0].size();
-//	if(!checkVehlStopsWithRiders(solutions)){
-//		print<<"NOT MATCH"<<std::endl;
-//		throw;
-//	}
+	//problemDimension=CandidateList[0].size();
 }
 
 void BBO::bbo_body(){
@@ -767,10 +743,11 @@ void BBO::match() {
 	doSort();
 	if(debugMode)
 		solution_show();
-
+	this->init_cost=solutionsCosts[0];
 	bbo_body();
+	this->avgCostImprovement+= 1-(this->init_cost / solutionsCosts[0]);
 	commit();
-
+	print << "Average improvement: "<<this->avgCostImprovement/this->batchCounter<<std::endl;
 	//Last step: commit to database
 }
 void BBO::commit() {
