@@ -113,7 +113,7 @@ class RSAlgorithm {
   //Hamed end
   //Hamed
    int batchCounter;
-   double init_cost,avgCostImprovement;
+   double avgCostImprovement;
 
  protected:
   int   nmat_;                              // number matched

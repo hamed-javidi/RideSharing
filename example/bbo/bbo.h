@@ -34,27 +34,31 @@ class BBO : public RSAlgorithm {
 		std::random_device rd;
 		Grid grid_;
 		vec_t<Grid> local_grid;
+		vec_t<Grid> elites_grid;
 		std::mt19937 gen;
 		//BBO variables
-		const int NumberOfElites= 2;
+		int NumberOfElites;
 		const float MutationProbability= 0.04;
 		const int GenerationLimit=10;
+		const int maxNumberOfElites=2;
 		const int PopulationSize=20;
 		int problemDimension;
 		vec_t <float> mu;
 		vec_t <float> lambda;
 
 		vec_t<dict<Customer, MutableVehicleSptr>> assignedRider ;
-		vec_t<dict<Customer, MutableVehicleSptr>> EliteAssignedRider;
+		vec_t<dict<Customer, MutableVehicleSptr>> elitesAssignedRider;
 
 		vec_t<dict<Customer, vec_t<MutableVehicleSptr>>> CandidateList;
-		vec_t<vec_t<Customer>> unassignedRider ;
+		vec_t<dict<Customer, vec_t<MutableVehicleSptr>>> elitesCandidateList;
+		vec_t<vec_t<Customer>> unassignedRider;
+		vec_t<vec_t<Customer>> elitesUnassignedRider;
 		vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> solutions;
-		vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> EliteSolutions;
+		vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> elitesSolutions;
 		vec_t<dict<VehlId, MutableVehicleSptr>> lookupVehicle;
-
+		vec_t<dict<VehlId, MutableVehicleSptr>> elitesLookupVehicle;
 		vec_t<long> solutionsCosts;
-		vec_t<long> EliteCosts;
+		vec_t<long> elitesCosts;
 
 		//vec_t<int> sortIndx;
 		vec_t<long> minimumCostPerGeneration;
@@ -91,7 +95,7 @@ class BBO : public RSAlgorithm {
 		bool matched;
 		tick_t timeout_0;
 
-
+		long init_cost;
 
 		void reset_workspace();
 		float rand(){

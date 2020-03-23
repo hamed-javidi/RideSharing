@@ -64,7 +64,7 @@ void BBO::doSort(){
 	auto tcandlist=CandidateList;
 	auto tgrid=local_grid;
 	int j=0;
-	if(!(solutionsCosts.size() == solutions.size() && solutions.size() == assignedRider.size() &&  solutions.size() ==  unassignedRider.size() && solutions.size()== CandidateList.size())){
+	if(!(solutionsCosts.size() == solutions.size() && solutions.size() == assignedRider.size() &&  solutions.size() ==  unassignedRider.size() && solutions.size()== CandidateList.size()&& solutions.size()== local_grid.size() && solutions.size()== lookupVehicle.size())){
 		print<<std::endl<<"CRITICAL ERROR SIZING"<<std::endl;
 		print<<solutionsCosts.size()<<std::endl;
 		print<<solutions.size()<<std::endl;
@@ -72,7 +72,7 @@ void BBO::doSort(){
 		print<<unassignedRider.size()<<std::endl;
 		print<<lookupVehicle.size()<<std::endl;
 		print<<CandidateList.size()<<std::endl;
-
+		print<<local_grid.size()<<std::endl;
 	}
 	for(auto &i : idx){
 		local_grid[j]=tgrid[i];
@@ -121,6 +121,7 @@ bool BBO::checkSCHTemp(int solutionIdx, MutableVehicleSptr const & r, vec_t<dict
 BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 
 	best_cost=INT32_MAX;
+	NumberOfElites= maxNumberOfElites;
 	matched=false;
 	debugMode=true;
 	problemDimension=0;
@@ -133,16 +134,21 @@ BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 	//this->gen.seed(rd());
 	//TODO: comment the below line and uncomment the above line
 	this->gen.seed(1);
-	print<<"Solution size: "<<solutions.size()<<std::endl;
-	unassignedRider.reserve(PopulationSize);
+
 	assignedRider.reserve(PopulationSize);
-	EliteAssignedRider.reserve(NumberOfElites);
+	unassignedRider.reserve(PopulationSize);
 	solutions.reserve(PopulationSize);
 	solutionsCosts.reserve(PopulationSize);
 	lookupVehicle.reserve(PopulationSize);
 	CandidateList.reserve(PopulationSize);
-	EliteSolutions.reserve(NumberOfElites);
-	EliteCosts.reserve(NumberOfElites);
+
+	elitesAssignedRider.reserve(NumberOfElites);
+	elitesUnassignedRider.reserve(NumberOfElites);
+	elitesSolutions.reserve(NumberOfElites);
+	elitesCosts.reserve(NumberOfElites);
+	elitesLookupVehicle.reserve(NumberOfElites);
+	elitesCandidateList.reserve(NumberOfElites);
+
 	minimumCostPerGeneration.reserve(GenerationLimit);
 }
 
@@ -252,63 +258,76 @@ void BBO::bbo_body(){
 	for (int Generation = 0; Generation< GenerationLimit; Generation++){
 
 		// Save the best solutions and costs in the elite arrays
-
+		//NumberOfElites=maxNumberOfElites;
 		for (int i = 0; i < NumberOfElites; ++i){
-			local_grid.push_back(local_grid[i]);
-//			lookupVehicle.push_back(temp3);
-//			EliteSolutions.push_back(Temp);
-//			EliteAssignedRider.push_back(temp1);
+//			if(i>0)
+//				if(solutionsCosts[i]==solutionsCosts[i-1]){
+//					NumberOfElites--;
+//					break;
+//				}
 
+			elites_grid.push_back(local_grid[i]);//
+			if(elites_grid[i].get_size()==0)
+				print<< "elites_grid: "<<i<<" is null++++++++++++++++++++++"<<std::endl;
 			for(auto const & record : solutions[i]){
-				auto newCand = local_grid[PopulationSize+i].select(record.first->id());
-				if(i >= EliteSolutions.size())
-					EliteSolutions.push_back({{newCand,{record.second}}});
+				auto newCand = elites_grid[i].select(record.first->id());
+				if(i >= elitesSolutions.size())
+					elitesSolutions.push_back({{newCand,{record.second}}});
 				else
-					EliteSolutions[i][newCand]=record.second;
+					elitesSolutions[i][newCand]=record.second;
+//				if(!checkVehlStopsWithRiders(EliteSolutions)){
+//					print<<"NOT MATCH"<<std::endl;
+//					throw;
+//				}
 			}
 			for(auto const & record : assignedRider[i]){
-				auto newCand = local_grid[PopulationSize+i].select(record.second->id());
-				if(i >= EliteAssignedRider.size())
-					EliteAssignedRider.push_back({{record.first,newCand}});
+				auto newCand = elites_grid[i].select(record.second->id());
+				if(i >= elitesAssignedRider.size())
+					elitesAssignedRider.push_back({{record.first,newCand}});
 				else
-					EliteAssignedRider[i][record.first]=newCand;
+					elitesAssignedRider[i][record.first]=newCand;
 			}
 			for(auto const & record : lookupVehicle[i]){
-				auto newCand = local_grid[PopulationSize+i].select(record.first);
-				if(i >= (lookupVehicle.size()-PopulationSize)) //lookupVehicle is used for storing Solutions and Elites
-					lookupVehicle.push_back({{record.first,newCand}});
+				auto newCand = elites_grid[i].select(record.first);
+				if(i >= (elitesLookupVehicle.size()))
+					elitesLookupVehicle.push_back({{record.first,newCand}});
 				else
-					lookupVehicle[PopulationSize+i][record.first]=newCand;
+					elitesLookupVehicle[i][record.first]=newCand;
 			}
-			EliteCosts.push_back(solutionsCosts[i]);
+			for(auto const & record : CandidateList[i]){
+				vec_t<MutableVehicleSptr> cands;
+				for(auto const & cand:record.second){
+					auto newCand = elites_grid[i].select(cand->id());
+					cands.push_back(newCand);
+				}
+				if(i >= elitesCandidateList.size())
+					elitesCandidateList.push_back({{record.first,cands}});
+				else
+					elitesCandidateList[i][record.first]=cands;
+			}
 
+			elitesUnassignedRider.push_back(unassignedRider[i]);
+			elitesCosts.push_back(solutionsCosts[i]);
 		}
 
 	    auto tempSolutions = solutions;
 	    auto tempAssignedRider = assignedRider;
 	    auto tempUnassignedRider=unassignedRider;
-
 	    //Use migration rates to decide how much information to share between solutions
-
 	    for (int k = 0; k < PopulationSize; ++k) {
-
 			for(auto const &r : assignedRider[k]){
 				//print<<k<<"= " <<r.first.id()<<" "<<r.second->id()<<std::endl;
 				//Should we immigrate?
-
 				if( rand() < lambda[k] ){
 
 	                //Yes - Pick a solution from which to emigrate (roulette wheel selection)
 	                float RandomNum = rand() * std::accumulate(mu.begin(), mu.end(), 0.0);
 	                float Select = mu[0];
 	                int SelectIndex = 0;
-
 	                while( (RandomNum > Select) && (SelectIndex < PopulationSize) ){
 	                    SelectIndex ++;
 	                    Select += mu[SelectIndex];
 	                }
-
-
 	                if(SelectIndex!=k){
 	                	if(debugMode)
 	                		print<<std::endl<<"Population "<<k<<"= " <<"Rider "<<r.first.id()<<" -> Driver "<<r.second->id()<<", Transfer to Population "<<SelectIndex<<std::endl;
@@ -318,21 +337,8 @@ void BBO::bbo_body(){
 //	                		print<<"NOT MATCH"<<std::endl;
 //	                		throw;
 //	                	}
-	                	//solution_show();
 	                }
-
-//	                if (solutions[SelectIndex].count(r.second) == 0) {
-//	                	//print<<"AAA"<<std::endl;
-//						vec_t<Customer> assignments = {};
-//						solutions[SelectIndex][r.second] = assignments;
-//					}
-//
-//	                tempSolutions[k][r.second] = solutions[SelectIndex].at(r.second);	// this is the migration step
 	        	}
-	            else
-	            {
-	            	//tempSolutions[sortIndx[k]].at(r.second) = solutions[sortIndx[k]].at(r.second);
-	            }
 	        }
 		}
 		//TODO: bbo_mutation();
@@ -344,37 +350,36 @@ void BBO::bbo_body(){
 			costUpdate(i);
 
 		doSort();
-		//insertElits();
-		//Clear ELITES to be ready to use in the next generation
-		for (int i = 0; i < NumberOfElites; ++i){
-			local_grid.pop_back();
-			lookupVehicle.pop_back();
-		}
-		EliteCosts.clear();
-		EliteSolutions.clear();
-		EliteAssignedRider.clear();
+		insertElits();
 
-		//doSort();
 //		if(!checkVehlStopsWithRiders(solutions)){
 //			print<<"NOT MATCH"<<std::endl;
 //			throw;
 //		}
+		doSort();
+		//Clear ELITES to be ready to use in the next generation
+		elitesSolutions.clear();
+		elitesCosts={};
+		elitesAssignedRider.clear();
+		elitesUnassignedRider.clear();
+		elitesCandidateList.clear();
+		elitesLookupVehicle.clear();
+		elites_grid={};
+
 		minimumCostPerGeneration.push_back(solutionsCosts[0]);
 		print<<"Minimum of the generation "<< Generation<< " is: " <<minimumCostPerGeneration[Generation]<<std::endl;
 		if(debugMode){
 			solution_show();
 			print<<std::endl;
 		}
-
 	}
-
 }
 bool BBO::checkVehlStopsWithRiders(const vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> & sol){
 	int solCnt=0;
 
 	for(auto const & i: sol){
 		for(auto const & rec : i){
-			if((rec.first->schedule().size()-2) != rec.second.size()*2){
+			if((rec.first->schedule().size()-2-(rec.first->queued()*2)) != rec.second.size()*2){
 				print<<"Solution: "<<solCnt<<" , Vehl id: "<<rec.first->id()<<std::endl;
 				return 0;
 			}
@@ -398,33 +403,14 @@ void BBO::end() {
 }
 void BBO::insertElits(){
 	for (uint8_t i = 0; i < NumberOfElites; i++){
-		solutions[PopulationSize-1-i].clear();
-		solutions[PopulationSize-1-i]=EliteSolutions[i];
-		lookupVehicle[PopulationSize-1-i]=lookupVehicle[PopulationSize+i];
-		assignedRider[PopulationSize-1-i]=assignedRider[PopulationSize+i];
-		solutionsCosts[PopulationSize-1-i] = EliteCosts[i];
+		solutions[PopulationSize-1-i]=		elitesSolutions[i];
+		lookupVehicle[PopulationSize-1-i]=	elitesLookupVehicle[i];
+		assignedRider[PopulationSize-1-i]=	elitesAssignedRider[i];
+		unassignedRider[PopulationSize-1-i]=elitesUnassignedRider[i];
+		solutionsCosts[PopulationSize-1-i]= elitesCosts[i];
+		local_grid[PopulationSize-1-i]=		elites_grid[i];
+		CandidateList[PopulationSize-1-i]=	elitesCandidateList[i];
 	}
-	/*
-	try{
-		for (uint8_t i = 0; i < NumberOfElites; i++){
-			solutions[PopulationSize-1-i].clear();
-
-			for(auto const &vSrc : EliteSolutions[i]){
-				MutableVehicleSptr & vDest=lookupVehicle[PopulationSize-1-i].at(vSrc.first->id());
-				solutions[PopulationSize-1-i][vDest]=vSrc.second;
-				for(auto const &r:vSrc.second){
-					assignedRider[PopulationSize-1-i][r]=vDest;
-				}
-			}
-
-			solutionsCosts[PopulationSize-1-i] = EliteCosts[i];
-
-		}
-	}
-	catch(const out_of_range &e){
-			cerr<<"Exception at Elites access" << e.what() << std::endl;
-	}
-	*/
 }
 
 void BBO::bbo_mutation(){
@@ -743,9 +729,9 @@ void BBO::match() {
 	doSort();
 	if(debugMode)
 		solution_show();
-	this->init_cost=solutionsCosts[0];
+	init_cost=solutionsCosts[0];
 	bbo_body();
-	this->avgCostImprovement+= 1-(this->init_cost / solutionsCosts[0]);
+	this->avgCostImprovement+= 1-((double)solutionsCosts[0]/this->init_cost);
 	commit();
 	print << "Average improvement: "<<this->avgCostImprovement/this->batchCounter<<std::endl;
 	//Last step: commit to database
@@ -764,7 +750,7 @@ void BBO::commit() {
        for (const CustId& cid : cadd)
          print(MessageType::Warning) << "Rejected due to sync " << cid << " with " << cand->id() << std::endl;
      }
-    checkSCH(0, cand);
+    //checkSCH(0, cand);
   }
 }
 void BBO::costUpdate(int indx){
@@ -791,41 +777,36 @@ uint16_t dictSize(dict<MutableVehicleSptr, vec_t<Customer>> d){
 
 
 void BBO::solution_show(){
-//	int indx=0;
-//	for(auto & i :assignedRider){
-//		print<<std::endl<<"Cost="<<solutionsCosts[indx]<<", ";
-//		print<<"Solution:"<<indx++<<" ";
-//		for(auto &j : i){
-//			print<<j.first.id()<<"->"<<j.second->id()<<", ";
-//		}
-//
-//	}
-//	print<<std::endl;
+	for(int i=0;i<PopulationSize;i++){
 
+		print<<"	Cost = "<<solutionsCosts[i]<<", ";
+		print<<"	Solution: "<<i<<" Drivers: "<<solutions[i].size()<<", Riders: "<<dictSize(solutions[i])<<"\t";
+		for(const auto & j : solutions[i]){
+			print<<j.first->id()<<"->";
+			for(const auto k : j.second){
 
-		for(int i=0;i<PopulationSize;i++){
-
-			print<<std::endl<<"Cost="<<solutionsCosts[i]<<", ";
-			print<<"Solution:"<<i<<" Drivers: "<<solutions[i].size()<<", Riders: "<<dictSize(solutions[i])<<"\t";
-			for(const auto & j : solutions[i]){
-				print<<j.first->id()<<"->";
-				for(const auto k : j.second){
-
-					print<<k.id()<<(compare_shared_ptr(j.first, lookupVehicle[i].at(j.first->id()))?"-O-, ":"-X-, ");
-				}
-
+				print<<k.id();//<<(compare_shared_ptr(j.first, lookupVehicle[i].at(j.first->id()))?"-O-, ":"-X-, ");
 			}
-
 		}
 		print<<std::endl;
+	}
+
 }
 
 
 
 void BBO::reset_workspace() {
-	EliteSolutions.clear();
-	EliteAssignedRider.clear();
-	EliteCosts={};
+	elitesSolutions.clear();
+	elitesCosts={};
+	elitesAssignedRider.clear();
+	elitesUnassignedRider.clear();
+	elitesCandidateList.clear();
+	elitesLookupVehicle.clear();
+	elites_grid={};
+
+
+
+
 	solutions.clear();
 	solutionsCosts={};
 	assignedRider.clear();
@@ -833,6 +814,7 @@ void BBO::reset_workspace() {
 	CandidateList.clear();
 	lookupVehicle.clear();
 	local_grid={};
+
 	minimumCostPerGeneration={};
 	mu={};
 	lambda={};
