@@ -30,18 +30,19 @@ class BBO : public RSAlgorithm {
 
 	private:
 		bool debugMode;
-
+		vec_t<int> sortedIdx;
 		std::random_device rd;
 		Grid grid_;
 		vec_t<Grid> local_grid;
-		vec_t<Grid> elites_grid;
+//		vec_t<Grid> elites_grid;
 		std::mt19937 gen;
 		//BBO variables
 		int NumberOfElites;
+		int PopulationSize;
 		const float MutationProbability= 0.04;
 		const int GenerationLimit=10;
 		const int maxNumberOfElites=2;
-		const int PopulationSize=20;
+		const int maxPopulationSize=20;
 		int problemDimension;
 		vec_t <float> mu;
 		vec_t <float> lambda;
@@ -59,8 +60,6 @@ class BBO : public RSAlgorithm {
 		vec_t<dict<VehlId, MutableVehicleSptr>> elitesLookupVehicle;
 		vec_t<long> solutionsCosts;
 		vec_t<long> elitesCosts;
-
-		//vec_t<int> sortIndx;
 		vec_t<long> minimumCostPerGeneration;
 
 
@@ -75,8 +74,8 @@ class BBO : public RSAlgorithm {
 		void bbo_body();
 		void bbo_mutation();
 		bool checkSCH(int solutionIdx, MutableVehicleSptr const & r);
-		bool checkSCHTemp(int solutionIdx, MutableVehicleSptr const & r, vec_t<dict<Customer, MutableVehicleSptr>> &tempAssignedRider, vec_t<dict<MutableVehicleSptr, vec_t<Customer>>>  &tempSolutions);
-		void costUpdate(int);
+		bool checkSCHTemp(int solutionIdx, MutableVehicleSptr const & r, vec_t<dict<Customer, MutableVehicleSptr>> const &tempAssignedRider, vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> const  &tempSolutions);
+		void solutionsCostUpdate();
 		void solution_show();
 		bool Greedy_Assignment(int,const Customer &, vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> & tempSolutions, vec_t<dict<Customer, MutableVehicleSptr>> &tempAssignedRider, vec_t<vec_t<Customer>> &tempUnassignedRider);
 		void ridersRandomlySelector(int indx, MutableVehicleSptr vehl, vec_t<Customer> & riders);
@@ -85,6 +84,11 @@ class BBO : public RSAlgorithm {
 		void commit();
 		bool checkVehlStopsWithRiders(const vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> & sol);
 		bool checkVehlStopsDuplication(const MutableVehicleSptr &vehl, const Customer & cust);
+		void selectElites();
+		bool checkVehileConsistencyInAllStructures(	const dict<MutableVehicleSptr, vec_t<Customer>> & solutions,
+															const dict<Customer, MutableVehicleSptr> & assignedRider,
+															const dict<VehlId,MutableVehicleSptr> & lookupVehl,
+															const dict<Customer, vec_t<MutableVehicleSptr>> & CandidateList	);
 		//vec_t<Customer>::iterator searchRider(Customer const &a, vec_t<Customer> const &b);
 		/* Workspace variables */
 		DistInt best_cost;
@@ -102,4 +106,5 @@ class BBO : public RSAlgorithm {
 			return rd()/float(rd.max());
 		}
 };
+
 

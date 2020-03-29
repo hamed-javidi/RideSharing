@@ -41,6 +41,7 @@ class Grid {
   Grid(int);  // int = number of cells; total grid size = int^2
   Grid(const Grid &); // copy ctor
 
+
   void insert(const Vehicle &);
   void insert(const MutableVehicle &);
   MutableVehicleSptr select(const VehlId &);

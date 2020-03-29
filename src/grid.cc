@@ -54,6 +54,8 @@ Grid::Grid(const Grid &grid) {
     }
   }
 }
+
+
 void Grid::show_grid(){
 	for (int i = 0; i < n_; ++i) {
 		std::cout<<data_[i].size();
