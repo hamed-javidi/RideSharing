@@ -19,7 +19,7 @@ BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 	matched=false;
 	debugMode=0;
 	problemDimension=0;
-	this->batch_time() = 30;
+	this->batch_time() = 60;
 
 	for (uint8_t i = 1; i <= PopulationSize; ++i) {
 		mu.push_back((PopulationSize + 1 - i) / (double)(PopulationSize + 1)); // emigration rate
@@ -261,10 +261,11 @@ void BBO::selectElites(){
 				elitesSolutions.push_back({{newCandSptr,record.second}});
 			else
 				elitesSolutions[i][newCandSptr]=record.second;
-			if(!checkVehlStopsWithRiders(elitesSolutions)){
-				print<<"NOT MATCH"<<std::endl;
-				throw;
-			}
+			if(debugMode)
+				if(!checkVehlStopsWithRiders(elitesSolutions)){
+					print<<"NOT MATCH"<<std::endl;
+					throw;
+				}
 		}
 		for(auto const & record : assignedRider[i]){
 			auto newCandSptr = elitesLookupVehicle[i].at(record.second->id());
@@ -367,10 +368,11 @@ bool BBO::Greedy_Assignment(int solIndex,const Customer &cust,
 		return 0;
 	}
 	else{
-		if(checkVehlStopsDuplication(best_vehl,cust)){
-			print<<"Sch Duplication"<<std::endl;
-			throw;
-		}
+		if(debugMode)
+			if(checkVehlStopsDuplication(best_vehl,cust)){
+				print<<"Sch Duplication"<<std::endl;
+				throw;
+			}
 		best_vehl->set_sch(best_sch);  										// update grid version of the candidate
 		best_vehl->set_rte(best_rte);
 		best_vehl->reset_lvn();
@@ -519,10 +521,11 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 
 	//1-Yes: Choose some riders from the selected vehicle as emigrate riders
 	int xx=copyRiders.size();
-	if(xx == 0){
-		print <<popIndxSrc<<", "<<popIndxDest<<", "<<r->id()<<std::endl;
-		throw;
-	}
+	if(debugMode)
+		if(xx == 0){
+			print <<popIndxSrc<<", "<<popIndxDest<<", "<<r->id()<<std::endl;
+			throw;
+		}
 
 	//TODO uncomment the below line to have a random number of selected riders
 	//ridersRandomlySelector(popIndxSrc, r, copyRiders);
@@ -545,7 +548,8 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 
 	for(auto const &i : copyRiders){
 		std::pair<bool, int> result =findInVector<Customer>(alreadyAsssignRider,i);
-		print <<result.first<<"  "<<result.second<<std::endl;
+		if(debugMode)
+			print <<result.first<<"  "<<result.second<<std::endl;
 		if(!result.first)
 			toBeMigratedRiders.push_back(i);
 	}
@@ -583,7 +587,8 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 			t_tempSolution[popIndxDest][cand].erase(std::remove(t_tempSolution[popIndxDest][cand].begin(), t_tempSolution[popIndxDest][cand].end(), i), t_tempSolution[popIndxDest][cand].end());
 			if(t_tempSolution[popIndxDest][cand].size() == 0 ){
 				t_tempSolution[popIndxDest].erase(cand);
-				print <<"	Driver "<<cand->id()<<"is removed from solution "<<popIndxDest<<std::endl;
+				if(debugMode)
+					print <<"	Driver "<<cand->id()<<"is removed from solution "<<popIndxDest<<std::endl;
 			}
 			std::vector<Stop>  sch_after_rem = cand->schedule().data();
 			std::vector<Wayp> rte_after_rem;
@@ -598,10 +603,11 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 			cand->set_rte(rte_after_rem);
 			cand->reset_lvn();
 			t_tempAssignedRider[popIndxDest].erase(i);
-			if(checkVehlStopsDuplication(cand,i)){
-				print<<"	Sch Duplication"<<std::endl;
-				throw;
-			}
+			if(debugMode)
+				if(checkVehlStopsDuplication(cand,i)){
+					print<<"	Sch Duplication"<<std::endl;
+					throw;
+				}
 //			checkSCHTemp(popIndxDest,cand, t_tempAssignedRider, t_tempSolution);
 			if(debugMode)
 				print <<"	Rider "<<i.id()<<"is deassigned from "<<cand->id()<<std::endl;
@@ -647,10 +653,11 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 	//3. No: Assign the selected riders to the selected vehicle in the target solution
 	for(const auto &i: toBeMigratedRiders){
 		sop_insert(copyVehl, i, sch, rte);
-		if(checkVehlStopsDuplication(copyVehl,i)){
-			print<<"Sch Duplication"<<std::endl;
-			throw;
-		}
+		if(debugMode)
+			if(checkVehlStopsDuplication(copyVehl,i)){
+				print<<"Sch Duplication"<<std::endl;
+				throw;
+			}
 		copyVehl->set_sch(sch);
 		copyVehl->set_rte(rte);
 		copyVehl->reset_lvn();
@@ -779,10 +786,10 @@ void BBO::bbo_init(){
 			throw;
 		}
 	PopulationSize=solutions.size();
-	if(PopulationSize<maxPopulationSize){
-		print<<"NUMBER OF POP"<<std::endl;
-
-	}
+//	if(PopulationSize<maxPopulationSize){
+//		print<<"NUMBER OF POP"<<std::endl;
+//
+//	}
 	solutionsCostUpdate();
 
 }
@@ -829,13 +836,15 @@ void BBO::bbo_body(){
 	                	if(debugMode)
 	                		print<<std::endl<<"Population "<<k<<"= " <<"Rider "<<r.first.id()<<" -> Driver "<<r.second->id()<<", Transfer to Population "<<SelectIndex<<std::endl;
 	                	if(!migrate_vehicle_based(SelectIndex, k, r.second, tempSolutions,tempAssignedRider, tempUnassignedRider))
-	                		print<<"migrate is not done!"<<std::endl;
+	                		if(debugMode)
+	                			print<<"migrate is not done!"<<std::endl;
 	                	if(debugMode){
 							if(!checkVehlStopsWithRiders(tempSolutions)){
 								print<<"NOT MATCH"<<std::endl;
 								throw;
 							}
-							checkVehileConsistencyInAllStructures(tempSolutions[k], tempAssignedRider[k], lookupVehicle[k], CandidateList[k]);
+							if(debugMode)
+								checkVehileConsistencyInAllStructures(tempSolutions[k], tempAssignedRider[k], lookupVehicle[k], CandidateList[k]);
 	                	}
 	                }
 	        	}
