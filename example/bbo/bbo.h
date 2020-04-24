@@ -9,8 +9,6 @@
 
 using namespace cargo;
 
-
-<<<<<<< master
 namespace MatchHistoryMap {
 
 	typedef std::tuple<vec_t<TripId>, bool, vec_t<Stop>, vec_t<Wayp>, DistInt> value_capMatched;
@@ -22,12 +20,7 @@ namespace MatchHistoryMap {
 			return std::get<0>(k).id() ^ std::get<1>(k)->id();
 		}
 	};
-=======
 
-
->>>>>>> 3c5f462 Added match history in init function
-
-<<<<<<< master
 	struct key_equal : public std::binary_function<key_t, key_t, bool>
 	{
 		bool operator()(const key_t& v0, const key_t& v1) const
@@ -63,13 +56,13 @@ namespace rollBackHistoryMap {
 }
 using namespace MatchHistoryMap;
 using namespace rollBackHistoryMap;
-=======
+
 struct Driver{
 			int capacity;		// capacity = real capacity - already fixed rides
 			vec_t<int> rider;  //temporary riders
 		};
 
->>>>>>> 3c5f462 Added match history in init function
+
 class BBO : public RSAlgorithm {
 	public:
 		BBO(const std::string &);
@@ -81,7 +74,7 @@ class BBO : public RSAlgorithm {
 		virtual void end();
 
 	private:
-<<<<<<< master
+
 		const bool 		debugMode=0,
 						rollBack=1,
 						hybridInit=1;
@@ -94,9 +87,7 @@ class BBO : public RSAlgorithm {
 
 		const float 	MutationProbability= 0.04;
 
-=======
-		bool debugMode;
->>>>>>> 3c5f462 Added match history in init function
+		MatchHistory matchHist;
 		vec_t<int> sortedIdx;
 		std::random_device rd;
 		Grid grid_;

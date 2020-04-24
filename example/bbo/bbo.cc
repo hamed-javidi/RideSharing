@@ -17,17 +17,14 @@ using namespace cargo;
 
 BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 
-<<<<<<< master
 	//features configuration
-=======
->>>>>>> 3c5f462 Added match history in init function
 	best_cost=INT32_MAX;
 	NumberOfElites= maxNumberOfElites;
 	PopulationSize=maxPopulationSize;
 	matched=false;
-	debugMode=0;
+
 	problemDimension=0;
-	this->batch_time() = 60;
+	this->batch_time() = 30;
 
 	for (uint8_t i = 1; i <= PopulationSize; ++i) {
 		mu.push_back((PopulationSize + 1 - i) / (double)(PopulationSize + 1)); // emigration rate
@@ -889,6 +886,7 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 }
 
 void BBO::bbo_init(){
+	matchHist.clear();
 	if(debugMode)
 		print<<std::endl<<"Initializing...";
 	bool hybridIter = false;
@@ -919,7 +917,6 @@ void BBO::bbo_init(){
 				else
 					lookupVehicle[indx][cand->id()] = cand;
 			}
-<<<<<<< master
 			bool matched=false;
 			MutableVehicleSptr cand;
 
@@ -928,55 +925,7 @@ void BBO::bbo_init(){
 				cand = initRandomely(cust, candidates);
 				if (cand!=nullptr){
 					matched = true;
-=======
-			bool initial=false;
-			while (!candidates.empty() && !initial) {
-				auto k = candidates.begin();
-				std::uniform_int_distribution<> m(0, candidates.size()-1);
-				std::advance(k, m(this->gen));
-				MutableVehicleSptr cand = *k;
-				candidates.erase(k);
-				if (cand->schedule().data().size() < 8) {
-					sop_insert(*cand, cust, sch, rte);
-					if (chkcap(cand->capacity(), sch) && chktw(sch, rte)) {
-						if(debugMode)
-							if(checkVehlStopsDuplication(cand,cust)){
-								print<<"Sch Duplication"<<std::endl;
-								throw;
-							}
-						cand->set_sch(sch);  										// update grid version of the candidate
-						cand->set_rte(rte);
-						cand->reset_lvn();
-						if(indx >= solutions.size())
-							solutions.push_back({{cand,{cust}}});
-						else
-							solutions[indx][cand].push_back(cust);
-						if(indx >= assignedRider.size())
-							assignedRider.push_back({{cust,cand}});
-						else if(assignedRider[indx].count(cust) == 0)
-							assignedRider[indx][cust]=cand;
-						else{
-							print<<"	Error in inserting a record to assignRider list: current cust is exist in the list"<<std::endl;
-							throw;
-						}
-						if(debugMode)
-							print << "	Rider "<<cust.id()<<"is assigned to driver "<<cand->id()<<std::endl;
-						initial = true;
-//						if(debugMode)
-//							checkSCH(indx, cand);
-					}
-					else {
-//						if(debugMode)
-//							print << "      skipping due to infeasible" << std::endl;
-					}
->>>>>>> 3c5f462 Added match history in init function
 				}
-				else {
-//					if(debugMode)
-//						print << "      skipping due to sched_max" << std::endl;
-				}
-//				if (this->timeout(this->timeout_0))
-//					break;
 			}
 			else{//hybrid init mode
 				cand = initUsingGreedy(cust, candidates);
@@ -1022,7 +971,7 @@ void BBO::bbo_body(){
 		mu.push_back((PopulationSize + 1 - i) / (double)(PopulationSize + 1)); // emigration rate
 		lambda.push_back( 1 - mu[i-1]); // immigration rate
 	}
-	matchHist.clear();
+
 	for (int Generation = 0; Generation< GenerationLimit; Generation++){
 		// Save the best solutions and costs in the elite arrays
 		selectElites();
@@ -1050,8 +999,8 @@ void BBO::bbo_body(){
 	                }
 	                if(SelectIndex!=k){
 	                	if(debugMode)
-	                		print<<std::endl<<"Population "<<k<<"= " <<"Rider "<<r.first.id()<<" -> Driver "<<r.second->id()<<", Transfer to Population "<<SelectIndex<<std::endl;
-	                	if(!migrate_vehicle_based(SelectIndex, k, r.second, tempSolutions,tempAssignedRider, tempUnassignedRider))
+	                		print<<std::endl<<"Population "<<SelectIndex<<"= " <<"Rider "<<r.first.id()<<" -> Driver "<<r.second->id()<<", Transfer to Population "<<k<<std::endl;
+	                	if(!migrate_vehicle_based(k, SelectIndex, r.second, tempSolutions,tempAssignedRider, tempUnassignedRider))
 	                		if(debugMode)
 	                			print<<"migrate is not done!"<<std::endl;
 	                	if(debugMode){
@@ -1168,6 +1117,7 @@ void BBO::reset_workspace() {
 	elitesCandidateList.clear();
 	elitesLookupVehicle.clear();
 //	elites_grid={};
+	PopulationSize=maxPopulationSize;
 
 	solutions.clear();
 	solutionsCosts={};
