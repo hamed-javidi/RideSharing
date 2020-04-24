@@ -1,18 +1,26 @@
+#include <stdlib.h>
+
 #include <iostream>
 #include <queue>
 #include <tuple>
 #include <vector>
+#include <cstdint>
+#include <cstdlib>      // std::rand, std::srand
+
+#include "libcargo.h"
 #include "bbo.h"
 #include "libcargo/distance.h"
-#include "libcargo.h"
-#include <cstdint>
-#include <stdlib.h>
+
 using namespace cargo;
 
 
 
 BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 
+<<<<<<< master
+	//features configuration
+=======
+>>>>>>> 3c5f462 Added match history in init function
 	best_cost=INT32_MAX;
 	NumberOfElites= maxNumberOfElites;
 	PopulationSize=maxPopulationSize;
@@ -28,6 +36,7 @@ BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 	//this->gen.seed(rd());
 	//TODO: comment the below line and uncomment the above line
 	this->gen.seed(1);
+
 
 	assignedRider.reserve(PopulationSize);
 	unassignedRider.reserve(PopulationSize);
@@ -332,11 +341,170 @@ void BBO::bbo_mutation(){
 
 
 }
+bool BBO::PutMatchedHistory(const MutableVehicleSptr cand, const Customer & cust, vec_t<Stop> & sch, vec_t<Wayp> & rte, DistInt & cost, const bool is_matched){
+	vec_t<TripId> stops={};
+	for(auto i : cand->schedule().data())
+		stops.push_back(i.owner());
+	if(is_matched == true)
+		matchHist[std::make_tuple(cust,cand)] = std::make_tuple(stops, is_matched, sch, rte, cost);
+	else{
+		sch={};	rte={}; cost=0;
+		matchHist[std::make_tuple(cust,cand)] = std::make_tuple(stops, is_matched, sch, rte, cost);
+	}
+	return true; //no error
+}
+MutableVehicleSptr BBO::GetMatchedHistory(const MutableVehicleSptr cand, const Customer & cust, vec_t<Stop> & sch, vec_t<Wayp> & rte, DistInt & cost, bool & is_matched){
+	auto itr = matchHist.find(std::make_tuple(cust,cand));
+	if(matchHist.end() != itr){
+		vec_t<TripId> stops={};
+		for(auto i : cand->schedule().data())
+			stops.push_back(i.owner());
+		if((std::get<0>(itr->second) == stops) && (std::get<1>(itr->second)== true)){
+			sch = std::get<2>(itr->second);
+			rte = std::get<3>(itr->second);
+			cost = std::get<4>(itr->second);
+			is_matched=true;
+			return std::get<1>(itr->first); //record is found
+		}
+		else if((std::get<0>(itr->second)==stops) && (std::get<1>(itr->second)== false)){
+			is_matched=false;
+			return std::get<1>(itr->first);  //record is found
+		}
 
-bool BBO::Greedy_Assignment(int solIndex,const Customer &cust,
-								vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> & tempSolutions,
-								vec_t<dict<Customer, MutableVehicleSptr>> &tempAssignedRider,
-								vec_t<vec_t<Customer>> &tempUnassignedRider){
+	}
+	return nullptr; // record is not found
+}
+bool BBO::UpdateMatchedStructures(const uint8_t indx, const MutableVehicleSptr cand, const Customer & cust){
+	if(indx >= solutions.size())
+		solutions.push_back({{cand,{cust}}});
+	else
+		solutions[indx][cand].push_back(cust);
+	if(indx >= assignedRider.size())
+		assignedRider.push_back({{cust,cand}});
+	else if(assignedRider[indx].count(cust) == 0)
+		assignedRider[indx][cust]=cand;
+	else{
+		print<<"	Error in inserting a record to assignRider list: current cust is exist in the list"<<std::endl;
+		return false;
+	}
+	if(debugMode)
+		print << "	Rider "<<cust.id()<<"is assigned to driver "<<cand->id()<<std::endl;
+	return true;
+}
+bool BBO::UpdateUnmatchedStructures(const uint8_t indx, const Customer & cust){
+	if(indx >= unassignedRider.size())
+		unassignedRider.push_back({cust});
+	else
+		unassignedRider[indx].push_back(cust);
+	if(debugMode)
+		print << "	Rider " << cust.id() << "left unassigned" << std::endl;
+
+	return true;
+}
+MutableVehicleSptr BBO::initUsingGreedy(const Customer cust, const vec_t<MutableVehicleSptr> &candidates){
+
+	MutableVehicleSptr best_vehl=nullptr;
+	DistInt best_cost = InfInt;
+	vec_t<Stop> sch,best_sch = {};
+	vec_t<Wayp> rte,best_rte = {};
+
+	for (auto const cand : candidates) {
+		bool is_matched;
+		DistInt cur_cost = cand->route().cost();
+		DistInt cost=0, new_cost=0;
+		if(GetMatchedHistory(cand, cust, sch, rte, new_cost, is_matched) != nullptr){
+			if(is_matched){
+				cost = new_cost - cur_cost;
+				if (cost < best_cost) {
+					//no need to check capacity and time window
+					best_vehl = cand;
+					best_sch = sch;
+					best_rte = rte;
+					best_cost = cost;
+				}
+			}
+		}
+		else{
+			if (cand->schedule().data().size() < 8) {
+				new_cost = sop_insert(*cand, cust, sch, rte);
+				cost = new_cost - cur_cost;
+				if (chkcap(cand->capacity(), sch) && chktw(sch, rte)) {
+					PutMatchedHistory(cand, cust, sch, rte, new_cost, true);
+					if (cost < best_cost) {
+						best_vehl = cand;
+						best_sch = sch;
+						best_rte = rte;
+						best_cost = cost;
+					}
+				}
+				else
+					PutMatchedHistory(cand,cust, sch,rte, new_cost, false);
+			}
+		}
+	}
+	if(best_vehl != nullptr){
+		best_vehl->set_sch(best_sch);
+		best_vehl->set_rte(best_rte);
+		best_vehl->reset_lvn();
+	}
+	return best_vehl;
+}
+MutableVehicleSptr BBO::initRandomely(const Customer cust, vec_t<MutableVehicleSptr> &candidates){
+	vec_t<Stop> sch = {};
+	vec_t<Wayp> rte = {};
+	DistInt cost=0;
+	for (auto cand : candidates) {
+		bool is_matched;
+		if(GetMatchedHistory(cand, cust, sch, rte, cost, is_matched) != nullptr){
+			if(is_matched){
+				if(debugMode)
+					if(checkVehlStopsDuplication(cand,cust)){
+						print<<"Sch Duplication"<<std::endl;
+						throw;
+					}
+				cand->set_sch(sch);
+				cand->set_rte(rte);
+				cand->reset_lvn();
+
+				return cand;
+			}
+		}
+		else{
+			if (cand->schedule().data().size() < 8) {
+				sch={}; rte={};
+				cost = sop_insert(*cand, cust, sch, rte);
+				if (chkcap(cand->capacity(), sch) && chktw(sch, rte)) {
+					PutMatchedHistory(cand,cust, sch, rte, cost, true);
+					if(debugMode)
+						if(checkVehlStopsDuplication(cand,cust)){
+							print<<"Sch Duplication"<<std::endl;
+							throw;
+						}
+					cand->set_sch(sch);
+					cand->set_rte(rte);
+					cand->reset_lvn();
+
+					return cand;//
+				}
+				else {
+					sch={}; rte={}; cost=0;
+					PutMatchedHistory(cand, cust, sch, rte, cost, false);
+					if(debugMode)
+						print << "      skipping due to infeasible" << std::endl;
+				}
+			}
+
+		}
+	}
+	return nullptr;
+}
+bool BBO::Greedy_Assignment(	int 												solIndex,
+								const Customer 										& cust,
+								vec_t <dict<MutableVehicleSptr, vec_t<Customer>>> 	& temp_solutions,
+								vec_t <dict<Customer, MutableVehicleSptr>> 			& temp_assignedRider,
+								vec_t <vec_t<Customer>> 							& temp_unassignedRider,
+								rollBackHistory 									& rollback_hist
+								){
 	bool match=false;
 	this->best_cost = InfInt;
 	this->best_sch.clear();
@@ -363,7 +531,7 @@ bool BBO::Greedy_Assignment(int solIndex,const Customer &cust,
 	if(!match){
 		if(debugMode)
 			print <<"	Rider "<<cust.id()<<"left unassigned"<<std::endl;
-		tempUnassignedRider[solIndex].push_back(cust);
+		temp_unassignedRider[solIndex].push_back(cust);
 
 		return 0;
 	}
@@ -373,15 +541,18 @@ bool BBO::Greedy_Assignment(int solIndex,const Customer &cust,
 				print<<"Sch Duplication"<<std::endl;
 				throw;
 			}
+		if(rollback_hist.count(best_vehl) == 0)
+			rollback_hist[best_vehl] = std::make_tuple(best_vehl -> schedule().data(), best_vehl -> route().data());
+
 		best_vehl->set_sch(best_sch);  										// update grid version of the candidate
 		best_vehl->set_rte(best_rte);
 		best_vehl->reset_lvn();
 
-		tempSolutions[solIndex][best_vehl].push_back(cust);  		// update our copy of the candidate
-		tempAssignedRider[solIndex][cust]=best_vehl;
+		temp_solutions[solIndex][best_vehl].push_back(cust);  		// update our copy of the candidate
+		temp_assignedRider[solIndex][cust]=best_vehl;
 //		checkSCHTemp(solIndex,best_vehl, tempAssignedRider, tempSolutions);
 		if(debugMode)
-			print <<"	Rider "<<cust.id()<<" Assign to driver : "<<best_vehl->id()<<" with cost "<<best_cost<< " using Greedy"<<std::endl;
+			print <<"	Rider "<<cust.id()<<" Assign to driver : "<<temp_assignedRider[solIndex][cust]->id()<<" with cost "<<best_cost<< " using Greedy"<<std::endl;
 	}
 	return 1;
 }
@@ -483,11 +654,13 @@ void BBO::solution_show(){
 
 
 bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
-									const MutableVehicleSptr &r,
+									const MutableVehicleSptr r,
 									vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> & tempSolutions,
 									vec_t<dict<Customer, MutableVehicleSptr>> &tempAssignedRider,
 									vec_t<vec_t<Customer>> &tempUnassignedRider){
 	//In case of ROLL BACK migration
+	bool commitChanges=1;
+	rollBackHistory rollBackHist;
 	if(debugMode){
 		print << "	step 1"<<std::endl;
 		print<<"	Migration function is started:"<<std::endl;
@@ -504,6 +677,7 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 
 	vec_t<Customer> copyRiders={};
 	MutableVehicleSptr const copyVehl=lookupVehicle[popIndxDest].at(r->id());
+	rollBackHist[copyVehl]=std::make_tuple(copyVehl->schedule().data(),copyVehl->route().data());
 	vec_t<Customer> alreadyAsssignRider={},reassignRiders={},toBeMigratedRiders={};
 
 	if(t_tempSolution[popIndxSrc].count(r))
@@ -584,6 +758,10 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 		if(cand == nullptr)  //rider i has not been assigned in destination
 			continue;
 		if(t_tempSolution[popIndxDest].count(cand)){
+			if(rollBackHist.count(cand)==0)
+				rollBackHist[cand]=std::make_tuple(cand->schedule().data(),cand->route().data());
+			//else
+				//this cand exist in the hist
 			t_tempSolution[popIndxDest][cand].erase(std::remove(t_tempSolution[popIndxDest][cand].begin(), t_tempSolution[popIndxDest][cand].end(), i), t_tempSolution[popIndxDest][cand].end());
 			if(t_tempSolution[popIndxDest][cand].size() == 0 ){
 				t_tempSolution[popIndxDest].erase(cand);
@@ -673,11 +851,14 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 
 	//4. NO: Reassign them to vehicles which the best candidate in the target solution
 	for(auto const &i: reassignRiders)
-		if(!Greedy_Assignment(popIndxDest,i, t_tempSolution, t_tempAssignedRider,t_tempUnassignedRider)){
-			//exit without saving migration results
-			//return 0;
-			;
-	}
+		if(!Greedy_Assignment(popIndxDest,i, t_tempSolution, t_tempAssignedRider,t_tempUnassignedRider, rollBackHist)){
+			if(rollBack){
+				if(debugMode)
+					print<<"	roll back becuase of rider "<<i.id()<<" is unmatched!"<<std::endl;
+				commitChanges=0;
+			}
+		}
+
 //	//4. YES: Delete empty vehicles	from target solution
 //	for(auto i= t_tempSolution[popIndxDest].begin(); i!=t_tempSolution[popIndxDest].end(); )
 //		if(i->second.size() == 0 )
@@ -688,24 +869,44 @@ bool BBO::migrate_vehicle_based(int popIndxDest, int popIndxSrc,
 //		}
 //		else
 //			++i;
-	if(debugMode)
-		print <<"	step saving"<<std::endl;
-	tempSolutions=t_tempSolution;
-	tempAssignedRider=t_tempAssignedRider;
-	tempUnassignedRider=t_tempUnassignedRider;
-	return 1;
+
+	if(commitChanges){
+		if(debugMode)
+			print <<"	Migration is done!"<<std::endl;
+		tempSolutions=t_tempSolution;
+		tempAssignedRider=t_tempAssignedRider;
+		tempUnassignedRider=t_tempUnassignedRider;
+		return 1;
+	}
+	else{ //roll back steps
+		for(auto const record : rollBackHist){
+			std::get<0>(record.first)->set_sch(std::get<0>(record.second));
+			std::get<0>(record.first)->set_rte(std::get<1>(record.second));
+			std::get<0>(record.first)->reset_lvn();
+		}
+	}
+	return 0;
 }
 
 void BBO::bbo_init(){
 	if(debugMode)
 		print<<std::endl<<"Initializing...";
+	bool hybridIter = false;
+	int hybridIterNum;
+	if(hybridInit)
+		hybridIterNum = PopulationSize - int(PopulationSize * (hybridInitPercent / 100.0));
 	for (int indx = 0; indx < PopulationSize; ++indx)
 			local_grid.push_back(this->grid_);  // make a deep copy
 	//1- filling CandidateList for each rider
 	//we need to generate some population by using any algorithm or randomly
-	for (size_t indx = 0; indx < PopulationSize; ++indx) {
-		//local_grid.push_back(this->grid_);  // make a deep copy
-		for (const Customer& cust : this->customers()) {
+
+	std::srand ( unsigned ( std::time(0) ) );
+	for (uint8_t indx = 0; indx < PopulationSize; ++indx) {
+		if(indx >= hybridIterNum)
+			hybridIter = true;
+		auto customers = this->customers();
+		std::random_shuffle ( customers.begin(), customers.end() );
+		for (const auto & cust : customers ) {
 			vec_t<MutableVehicleSptr> candidates=local_grid[indx].within(pickup_range(cust), cust.orig());
 			if(indx >= CandidateList.size())
 				CandidateList.push_back({{cust,candidates}});
@@ -718,6 +919,16 @@ void BBO::bbo_init(){
 				else
 					lookupVehicle[indx][cand->id()] = cand;
 			}
+<<<<<<< master
+			bool matched=false;
+			MutableVehicleSptr cand;
+
+			if(hybridIter == 0){
+				std::random_shuffle ( candidates.begin(), candidates.end() );
+				cand = initRandomely(cust, candidates);
+				if (cand!=nullptr){
+					matched = true;
+=======
 			bool initial=false;
 			while (!candidates.empty() && !initial) {
 				auto k = candidates.begin();
@@ -758,6 +969,7 @@ void BBO::bbo_init(){
 //						if(debugMode)
 //							print << "      skipping due to infeasible" << std::endl;
 					}
+>>>>>>> 3c5f462 Added match history in init function
 				}
 				else {
 //					if(debugMode)
@@ -766,17 +978,20 @@ void BBO::bbo_init(){
 //				if (this->timeout(this->timeout_0))
 //					break;
 			}
-			if(!initial){
-				if(debugMode)
-					print << "	Rider " << cust.id() << "left unassigned" << std::endl;
-				if(indx >= unassignedRider.size())
-					unassignedRider.push_back({cust});
-				else
-					unassignedRider[indx].push_back(cust);
+			else{//hybrid init mode
+				cand = initUsingGreedy(cust, candidates);
+				if (cand!=nullptr){
+					matched = true;
+				}
 			}
+
+			if(!matched)
+				UpdateUnmatchedStructures(indx, cust);
+			else
+				UpdateMatchedStructures(indx, cand, cust);
 		}
 		if(debugMode){
-			print << "	Solution " << indx << ", Assigned Rider: " << assignedRider[indx].size() << ", Unassigned: " <<unassignedRider[indx].size() << std::endl;
+			print << "	Solution " << (int)indx << ", Assigned Rider: " << assignedRider[indx].size() << ", Unassigned: " <<unassignedRider[indx].size() << std::endl;
 			checkVehileConsistencyInAllStructures(solutions[indx], assignedRider[indx], lookupVehicle[indx], CandidateList[indx]);
 		}
 	}
@@ -807,6 +1022,7 @@ void BBO::bbo_body(){
 		mu.push_back((PopulationSize + 1 - i) / (double)(PopulationSize + 1)); // emigration rate
 		lambda.push_back( 1 - mu[i-1]); // immigration rate
 	}
+	matchHist.clear();
 	for (int Generation = 0; Generation< GenerationLimit; Generation++){
 		// Save the best solutions and costs in the elite arrays
 		selectElites();

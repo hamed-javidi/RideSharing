@@ -47,7 +47,42 @@
 #include "tshare/tshare.h"
 #include "bbo/bbo.h"
 #include "pso/pso.h"
+void Add_LatestDepartureTime_to_problemFile(){
+	long tid;
+	long oid;
+	long did;
+	int q;
+	long early;
+	long late;
+	std::string s1,s2,s3,s4,s5,s6;
 
+	std::ifstream ifs("/home/hamed/git/RideSharing/Cargo_benchmark/problem/rs-bj5non-m1k-c3-d6-s10-x1.0.instance");
+	std::ofstream if2("/home/hamed/git/RideSharing/Cargo_benchmark/problem/bj5-m1k-with_LatestDepartureTime.instance");
+
+	std::getline(ifs, s1);
+	std::getline(ifs, s2);
+	std::getline(ifs, s3);
+	std::getline(ifs, s4);
+	std::getline(ifs, s5);
+	std::getline(ifs, s6);
+	if2 << s1 << '\n' << s2 << '\n'<< s3 << '\n'<< s4 << '\n'<< s5 << '\n'<< s6 << '\t'<< "LateDep"<< '\n';
+	int ldep=0;
+	long distance=0;
+	while (ifs >> tid >> oid >> did >> q >> early >> late) {
+		distance = get_shortest_path(oid,did);  // in meter
+		ldep = late - distance / 10.0;  // distance in meter / speed in meter per second speed 10 meter per sec means 36 kmps in avg
+		if (ldep <  0){
+			late= distance / 10.0 +1200; //have 20 min slack
+			ldep = 1200;
+		}
+
+		if2 << tid << '\t' << oid << '\t' << did << '\t' << q << '\t' << early << '\t' << late << '\t' << ldep << '\n';
+
+
+	}
+	ifs.close();
+	if2.close();
+}
 void print_header() {
   std::cout
     << "-----------------------------------------------------------\n"
@@ -102,11 +137,11 @@ int main(int argc, char** argv) {
     selection="14";
     std::cout << "Path to rnet (*.rnet): ";
     //std::cin >> roadnetwork;
-    roadnetwork="/home/hamed/Desktop/Cargo-master/Cargo_benchmark/road/bj5.rnet";
+    roadnetwork="/home/hamed/git/RideSharing/Cargo_benchmark/road/bj5.rnet";
     std::cout << roadnetwork;
     std::cout << "Path to instance (*.instance): ";
     //std::cin >> instance;
-    instance="/home/hamed/Desktop/Cargo-master/Cargo_benchmark/problem/rs-bj5non-m200-c3-d6-s10-x1.0.instance";
+    instance="/home/hamed/git/RideSharing/Cargo_benchmark/problem/rs-bj5non-m200-c3-d6-s10-x1.0.instance";
     std::cout << instance;
   }
 
@@ -115,6 +150,7 @@ int main(int argc, char** argv) {
   op.static_mode = staticmode;
   op.strict_mode = strictmode;
   Cargo cargo(op);
+  //Add_LatestDepartureTime_to_problemFile();
 
   if (selection == "1") {
     BilateralPlus alg("bp_"+cargo.name()); cargo.start(alg);

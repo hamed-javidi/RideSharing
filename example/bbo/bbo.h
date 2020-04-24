@@ -10,14 +10,66 @@
 using namespace cargo;
 
 
+<<<<<<< master
+namespace MatchHistoryMap {
+
+	typedef std::tuple<vec_t<TripId>, bool, vec_t<Stop>, vec_t<Wayp>, DistInt> value_capMatched;
+	typedef std::tuple<Customer, MutableVehicleSptr> key_t;
+	struct key_hash : public std::unary_function<key_t, std::size_t>
+	{
+		std::size_t operator()(const key_t& k) const
+		{
+			return std::get<0>(k).id() ^ std::get<1>(k)->id();
+		}
+	};
+=======
 
 
+>>>>>>> 3c5f462 Added match history in init function
 
+<<<<<<< master
+	struct key_equal : public std::binary_function<key_t, key_t, bool>
+	{
+		bool operator()(const key_t& v0, const key_t& v1) const
+		{
+			return (
+			std::get<0>(v0).id() == std::get<0>(v1).id() &&
+			std::get<1>(v0)->id() == std::get<1>(v1)->id()
+			);
+		}
+	};
+	typedef std::unordered_map<const key_t,value_capMatched,key_hash,key_equal> MatchHistory;
+}
+namespace rollBackHistoryMap {
+
+	typedef std::tuple<vec_t<Stop>, vec_t<Wayp>> value;
+	typedef std::tuple<MutableVehicleSptr> key_t;
+	struct key_hash : public std::unary_function<key_t, std::size_t>
+	{
+		std::size_t operator()(const key_t& k) const
+		{
+			return std::get<0>(k)->id();
+		}
+	};
+
+	struct key_equal : public std::binary_function<key_t, key_t, bool>
+	{
+		bool operator()(const key_t& v0, const key_t& v1) const
+		{
+			return (std::get<0>(v0) == std::get<0>(v1));
+		}
+	};
+	typedef std::unordered_map<const key_t,value,key_hash,key_equal> rollBackHistory;;
+}
+using namespace MatchHistoryMap;
+using namespace rollBackHistoryMap;
+=======
 struct Driver{
 			int capacity;		// capacity = real capacity - already fixed rides
 			vec_t<int> rider;  //temporary riders
 		};
 
+>>>>>>> 3c5f462 Added match history in init function
 class BBO : public RSAlgorithm {
 	public:
 		BBO(const std::string &);
@@ -29,7 +81,22 @@ class BBO : public RSAlgorithm {
 		virtual void end();
 
 	private:
+<<<<<<< master
+		const bool 		debugMode=0,
+						rollBack=1,
+						hybridInit=1;
+
+
+		const uint8_t 	hybridInitPercent=15,	//max is 100
+						GenerationLimit=10,		//max is 255
+						maxNumberOfElites=2,	//max is maxPopulationSize
+						maxPopulationSize=20;	//max is 255
+
+		const float 	MutationProbability= 0.04;
+
+=======
 		bool debugMode;
+>>>>>>> 3c5f462 Added match history in init function
 		vec_t<int> sortedIdx;
 		std::random_device rd;
 		Grid grid_;
@@ -38,11 +105,8 @@ class BBO : public RSAlgorithm {
 		std::mt19937 gen;
 		//BBO variables
 		int NumberOfElites;
-		int PopulationSize;
-		const float MutationProbability= 0.04;
-		const int GenerationLimit=10;
-		const int maxNumberOfElites=2;
-		const int maxPopulationSize=20;
+		uint8_t PopulationSize; //maxpop=255
+
 		int problemDimension;
 		vec_t <float> mu;
 		vec_t <float> lambda;
@@ -68,7 +132,7 @@ class BBO : public RSAlgorithm {
 
 
 		DistInt get_cost();
-		bool migrate_vehicle_based(int popIndxSrc, int popIndxDest, const MutableVehicleSptr &, vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> &, vec_t<dict<Customer, MutableVehicleSptr>> & tempAssignedRider, vec_t<vec_t<Customer>> &tempUnassignedRider);
+		bool migrate_vehicle_based(int popIndxSrc, int popIndxDest, const MutableVehicleSptr , vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> &, vec_t<dict<Customer, MutableVehicleSptr>> & tempAssignedRider, vec_t<vec_t<Customer>> &tempUnassignedRider);
 		void bbo_init();
 		void insertElits();
 		void bbo_body();
@@ -77,7 +141,11 @@ class BBO : public RSAlgorithm {
 		bool checkSCHTemp(int solutionIdx, MutableVehicleSptr const & r, vec_t<dict<Customer, MutableVehicleSptr>> const &tempAssignedRider, vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> const  &tempSolutions);
 		void solutionsCostUpdate();
 		void solution_show();
-		bool Greedy_Assignment(int,const Customer &, vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> & tempSolutions, vec_t<dict<Customer, MutableVehicleSptr>> &tempAssignedRider, vec_t<vec_t<Customer>> &tempUnassignedRider);
+		bool Greedy_Assignment(int,const Customer &,
+				vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> & tempSolutions,
+				vec_t<dict<Customer, MutableVehicleSptr>> &tempAssignedRider,
+				vec_t<vec_t<Customer>> &tempUnassignedRider,
+				rollBackHistory &);
 		void ridersRandomlySelector(int indx, MutableVehicleSptr vehl, vec_t<Customer> & riders);
 		void randXofY(int ridersCount, vec_t<Customer> & riders);
 		void doSort();
@@ -89,13 +157,18 @@ class BBO : public RSAlgorithm {
 															const dict<Customer, MutableVehicleSptr> & assignedRider,
 															const dict<VehlId,MutableVehicleSptr> & lookupVehl,
 															const dict<Customer, vec_t<MutableVehicleSptr>> & CandidateList	);
+		MutableVehicleSptr GetMatchedHistory(const MutableVehicleSptr cand, const Customer & cust, vec_t<Stop> & sch, vec_t<Wayp> & rte, DistInt & cost, bool & is_matched);
+		bool PutMatchedHistory(const MutableVehicleSptr cand, const Customer & cust,vec_t<Stop> & sch, vec_t<Wayp> & rte, DistInt & cost, const bool is_matched);
+		bool UpdateMatchedStructures(const uint8_t indx, const MutableVehicleSptr cand, const Customer & cust);
+		bool UpdateUnmatchedStructures(const uint8_t indx, const Customer & cust);
 		//vec_t<Customer>::iterator searchRider(Customer const &a, vec_t<Customer> const &b);
 		/* Workspace variables */
 		DistInt best_cost;
 		vec_t<Stop> sch, best_sch;
 		vec_t<Wayp> rte, best_rte;
 		MutableVehicleSptr best_vehl;
-
+		MutableVehicleSptr initUsingGreedy(const Customer cust, const vec_t<MutableVehicleSptr> &candidates);
+		MutableVehicleSptr initRandomely(const Customer cust, vec_t<MutableVehicleSptr> &candidates);
 		bool matched;
 		tick_t timeout_0;
 
