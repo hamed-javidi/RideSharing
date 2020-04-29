@@ -11,9 +11,14 @@
 #include "bbo.h"
 #include "libcargo/distance.h"
 
+#include "matplotlib-cpp-master/matplotlibcpp.h"
+
 using namespace cargo;
+using namespace dlib;
 
 
+#define _USE_MATH_DEFINES
+namespace plt = matplotlibcpp;
 
 BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 
@@ -1060,12 +1065,32 @@ void BBO::bbo_body(){
 				checkVehileConsistencyInAllStructures(solutions[i], assignedRider[i], lookupVehicle[i], CandidateList[i]);
 	}
 }
-//hjfdvcbn
-//khjknm
+void BBO::DriverClustering(vec_t<Point> data, int k){
+	if(data.size()==0)
+		return;
+	 std::vector<sample_type> samples;
+	 std::vector<sample_type> initial_centers;
+
+	kcentroid<kernel_type> kc(kernel_type(0.1),0.01, 8);
+	kkmeans<kernel_type> test(kc);
+	test.set_number_of_centers(k);
+	sample_type m;
+	for(auto i : data){
+		m(0)=i.lat;
+		m(1)= i.lng;
+		samples.push_back(m);
+	}
+	pick_initial_centers(k, initial_centers, samples, test.get_kernel());
+	test.train(samples,initial_centers);
+	for(auto i : samples)
+		print << test(i) << ", ";
+	print<<std::endl;
+	//hg
+}
 void BBO::match() {
 
 	this->reset_workspace();
-
+	DriverClustering(driver_pool,25);
 	print<<"Batch #: "<<(++(this->batchCounter))<<", requests: "<<this->customers().size()<< std::endl;
 	bbo_init();
 //	if(debugMode){
@@ -1099,11 +1124,16 @@ void BBO::match() {
 }
 void BBO::handle_vehicle(const Vehicle& vehl) {
 	this->grid_.insert(vehl);
+	if(clustering_mode)
+		driver_pool.push_back(Cargo::node2pt(vehl.route().node_at(vehl.idx_last_visited_node())));
 
 }
 
 void BBO::listen(bool skip_assigned, bool skip_delayed) {
 	this->grid_.clear();
+	//Clustring part
+	driver_pool.clear();
+
 	RSAlgorithm::listen(skip_assigned, skip_delayed);
 }
 
@@ -1121,6 +1151,8 @@ void BBO::reset_workspace() {
 //	elites_grid={};
 	PopulationSize=maxPopulationSize;
 
+
+
 	solutions.clear();
 	solutionsCosts={};
 	assignedRider.clear();
@@ -1135,5 +1167,6 @@ void BBO::reset_workspace() {
 	this->rte = best_rte = {};
 	this->best_vehl = nullptr;
 	this->matched = false;
+
 }
 

@@ -6,8 +6,10 @@
 #include <random>
 #include <numeric>
 #include <algorithm>
+#include <dlib/clustering.h>
 
 using namespace cargo;
+using namespace dlib;
 
 namespace MatchHistoryMap {
 
@@ -77,7 +79,8 @@ class BBO : public RSAlgorithm {
 
 		const bool 		debugMode=0,
 						rollBack=1,
-						hybridInit=1;
+						hybridInit=1,
+						clustering_mode=1;
 
 
 		const uint8_t 	hybridInitPercent=15,	//max is 100
@@ -169,6 +172,16 @@ class BBO : public RSAlgorithm {
 		float rand(){
 			return rd()/float(rd.max());
 		}
-};
+
+		//####################Clustering Parts##############################
+
+		typedef matrix<double,2,1> sample_type;
+
+		typedef radial_basis_kernel<sample_type> kernel_type;
+		void DriverClustering(vec_t<Point> data, int k);
+		void AssignRidersToClusters(vec_t<Point> data, kcentroid<kernel_type> centroids);
+		int ELBO_analysis(vec_t<Point> data);
+		vec_t<Point> driver_pool, rider_pool;
+		};
 
 

@@ -1,17 +1,36 @@
-INCLUDE_DIR = ../include
+INCLUDE_DIR = ../include 
 CARGO_DIR = ../lib
 METIS_DIR = /usr/local/lib
+
+
+# Default to using system's default version of python
+PYTHON_BIN     ?= python
+PYTHON_CONFIG  := $(PYTHON_BIN)-config
+PYTHON_INCLUDE ?= $(shell $(PYTHON_CONFIG) --includes)
+
+LDFLAGS        += $(shell $(PYTHON_CONFIG) --libs)
+
 # ------------------------------------------------------------------------------
 
 CXX = g++
-CFLAGS = -Wall -Wextra -std=c++11 -O0 -g -c -I$(INCLUDE_DIR) -o $@
+CFLAGS = -Wall -Wextra -std=c++11 -O3 -g -c -I$(INCLUDE_DIR) -o $@
+
+CFLAGS       += $(PYTHON_INCLUDE)
+
 LFLAGS = -Wall
-PTHREAD = -pthread -lrt
+PTHREAD = -pthread -lrt -lpthread -lX11
 LDL = -ldl
 GLPK = -l:libglpk.a
 METIS = -L$(METIS_DIR) -lmetis
 CARGO = -L$(CARGO_DIR) -lcargo
 LIBCARGO = $(CARGO_DIR)/libcargo.a
+
+
+# Either finds numpy or set -DWITHOUT_NUMPY
+CFLAGS        += $(shell $(PYTHON_BIN) $(CURDIR)/numpy_flags.py)
+WITHOUT_NUMPY   := $(findstring $(CXXFLAGS), WITHOUT_NUMPY)
+
+
 # ------------------------------------------------------------------------------
 OBJECTS = \
 		bilateral+.o \
@@ -34,7 +53,7 @@ OBJECTS = \
 # 	$(CXX) $(LFLAGS) -o launcher $(OBJECTS) $(CARGO) $(PTHREAD) $(METIS) $(GLPK) $(LDL) -lltdl -lz -lamd -lcolamd -fopenmp 
 
 all: $(OBJECTS)
-	$(CXX) $(LFLAGS) -o launcher $(OBJECTS) $(CARGO) $(PTHREAD) $(METIS) $(GLPK) $(LDL) -fopenmp 
+	$(CXX) $(LFLAGS)  -o launcher $(OBJECTS) $(CARGO) $(PTHREAD) $(METIS) $(GLPK) $(LDL) $(LDFLAGS) -fopenmp 
 
 launcher.o: $(LIBCARGO) launcher.cc
 	$(CXX) $(CFLAGS) -Ikinetic_tree/include -Itrip_vehicle_grouping/include launcher.cc
@@ -79,7 +98,7 @@ pso.o: $(LIBCARGO) pso/pso.h pso/pso.cc
 	$(CXX) $(CFLAGS) pso/pso.cc	
 
 bbo.o: $(LIBCARGO) bbo/bbo.h bbo/bbo.cc
-	$(CXX) $(CFLAGS) bbo/bbo.cc 
+	$(CXX) $(CFLAGS) bbo/bbo.cc $(LDFLAGS)
 	
 clean:
 	rm *.o launcher
