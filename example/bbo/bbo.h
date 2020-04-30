@@ -181,7 +181,7 @@ class BBO : public RSAlgorithm {
 		void DriverClustering(vec_t<Point> data, int k);
 		void AssignRidersToClusters(vec_t<Point> data, kcentroid<kernel_type> centroids);
 		int ELBO_analysis(vec_t<Point> data);
-		vec_t<Point> driver_pool, rider_pool;
+		vec_t<Point> driver_points;
 		};
 
 

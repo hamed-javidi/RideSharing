@@ -1068,30 +1068,81 @@ void BBO::bbo_body(){
 void BBO::DriverClustering(vec_t<Point> data, int k){
 	if(data.size()==0)
 		return;
-	 std::vector<sample_type> samples;
+	 std::vector<sample_type> driver_pool,rider_pool;
+	 vec_t<unsigned long> driver_pool_label, rider_pool_label;
 	 std::vector<sample_type> initial_centers;
+	 const kcentroid<kernel_type> centeroids;
 
 	kcentroid<kernel_type> kc(kernel_type(0.1),0.01, 8);
-	kkmeans<kernel_type> test(kc);
-	test.set_number_of_centers(k);
+	kkmeans<kernel_type> kmeans_model(kc);
+	kmeans_model.set_number_of_centers(k);
 	sample_type m;
 	for(auto i : data){
 		m(0)=i.lat;
 		m(1)= i.lng;
-		samples.push_back(m);
+		driver_pool.push_back(m);
 	}
-	pick_initial_centers(k, initial_centers, samples, test.get_kernel());
-	test.train(samples,initial_centers);
-	for(auto i : samples)
-		print << test(i) << ", ";
-	print<<std::endl;
-	//hg
+	pick_initial_centers(k, initial_centers, driver_pool, kmeans_model.get_kernel());
+	kmeans_model.train(driver_pool,initial_centers);
+//	find_clusters_using_kmeans(driver_pool, initial_centers, k);
+
+//	for(const auto & it : initial_centers)
+//		centeroids.push_back(kmeans_model.get_kcentroid(i));
+
+	for(auto i : driver_pool)
+		driver_pool_label.push_back(kmeans_model(i));
+
+	for(int i=0; i<k ; i++){
+		vec_t<double> X, Y;
+		for(int j=0;j<driver_pool_label.size();j++)
+			if(driver_pool_label[j] == i){
+				X.push_back(driver_pool[j](0));
+				Y.push_back(driver_pool[j](1));
+			}
+		plt::scatter(X,Y,5);
+	}
+	plt::show();
+
+	for(const auto cust : this->customers()){
+		Point p = Cargo::node2pt(cust.orig());
+		m(0)=p.lat;
+		m(1)= p.lng;
+		rider_pool.push_back(m);
+		rider_pool_label.push_back(kmeans_model(m));
+
+		p = Cargo::node2pt(cust.dest());
+		m(0)=p.lat;
+		m(1)= p.lng;
+		rider_pool.push_back(m);
+		rider_pool_label.push_back(kmeans_model(m));
+	}
+	for(int i=0; i<k ; i++){
+		vec_t<double> X, Y;
+		for(int j=0;j<driver_pool_label.size();j++)
+			if(driver_pool_label[j] == i){
+				X.push_back(driver_pool[j](0));
+				Y.push_back(driver_pool[j](1));
+			}
+		for(int j=0;j<rider_pool_label.size();j++)
+			if(rider_pool_label[j] == i){
+				X.push_back(rider_pool[j](0));
+				Y.push_back(rider_pool[j](1));
+			}
+		plt::scatter(X,Y,5);
+	}
+	plt::show();
+
+
 }
 void BBO::match() {
 
 	this->reset_workspace();
-	DriverClustering(driver_pool,25);
-	print<<"Batch #: "<<(++(this->batchCounter))<<", requests: "<<this->customers().size()<< std::endl;
+	print << "Batch #: " << (++(this->batchCounter)) << ", # of Riders: " << this->customers().size() << ", # of Drivers: "<< this->vehicles().size() << std::endl;
+	if(batchCounter == 2)
+		DriverClustering(driver_points,25);
+	else
+		return;
+
 	bbo_init();
 //	if(debugMode){
 //		solution_show();
@@ -1124,15 +1175,18 @@ void BBO::match() {
 }
 void BBO::handle_vehicle(const Vehicle& vehl) {
 	this->grid_.insert(vehl);
-	if(clustering_mode)
-		driver_pool.push_back(Cargo::node2pt(vehl.route().node_at(vehl.idx_last_visited_node())));
+	if(clustering_mode){
+		driver_points.push_back(Cargo::node2pt(vehl.route().node_at(vehl.idx_last_visited_node())));
+		driver_points.push_back(Cargo::node2pt(vehl.dest()));
+	}
 
 }
 
 void BBO::listen(bool skip_assigned, bool skip_delayed) {
 	this->grid_.clear();
+
 	//Clustring part
-	driver_pool.clear();
+	driver_points.clear();
 
 	RSAlgorithm::listen(skip_assigned, skip_delayed);
 }
