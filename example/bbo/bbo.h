@@ -7,6 +7,7 @@
 #include <numeric>
 #include <algorithm>
 #include <dlib/clustering.h>
+#include <set>
 
 using namespace cargo;
 using namespace dlib;
@@ -175,13 +176,30 @@ class BBO : public RSAlgorithm {
 
 		//####################Clustering Parts##############################
 
-		typedef matrix<double,2,1> sample_type;
+		template <typename T> struct Contained
+		{
+			const std::set<T> _set;
+			template <typename It> Contained(const It& begin, const It& end) : _set(begin, end) {}
+			bool operator()(const T& i) const
+			{
+				return _set.end() != _set.find(i);
+			}
+		};
 
+		typedef matrix<double,2,1> sample_type;
+		typedef uint16_t clusterId;
 		typedef radial_basis_kernel<sample_type> kernel_type;
-		void DriverClustering(vec_t<Point> data, int k);
-		void AssignRidersToClusters(vec_t<Point> data, kcentroid<kernel_type> centroids);
-		int ELBO_analysis(vec_t<Point> data);
-		vec_t<Point> driver_points;
+		uint64_t DriverClustering(uint16_t k);
+		//void AssignRidersToClusters(vec_t<Point> data, kcentroid<kernel_type> centroids);
+		uint64_t ComputeBaseCost();
+		vec_t<Point> driver_point, rider_point;
+		vec_t<dict<MutableVehicleSptr,Point>> clustered_drivers;
+		vec_t<dict<Customer,Point>> clustered_riders;
+		vec_t<sample_type> driver_pool, rider_pool;
+		vec_t<Vehicle> driver_object_pool;
+		vec_t<Customer>rider_object_pool;
+		vec_t<clusterId> driver_pool_label, rider_pool_label;
+
 		};
 
 

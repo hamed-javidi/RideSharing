@@ -1,0 +1,17 @@
+/home/hamed/git/RideSharing/include/dlib-19.19/build/CMakeFiles/install/strip.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/CMakeFiles/install/local.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/CMakeFiles/package_source.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/CMakeFiles/package.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/CMakeFiles/install.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/CMakeFiles/edit_cache.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/CMakeFiles/rebuild_cache.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/CMakeFiles/list_install_components.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/dlib/CMakeFiles/install/strip.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/dlib/CMakeFiles/install/local.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/dlib/CMakeFiles/install.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/dlib/CMakeFiles/package.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/dlib/CMakeFiles/package_source.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/dlib/CMakeFiles/dlib.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/dlib/CMakeFiles/rebuild_cache.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/dlib/CMakeFiles/edit_cache.dir
+/home/hamed/git/RideSharing/include/dlib-19.19/build/dlib/CMakeFiles/list_install_components.dir

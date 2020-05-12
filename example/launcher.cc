@@ -141,7 +141,7 @@ int main(int argc, char** argv) {
     std::cout << roadnetwork;
     std::cout << "Path to instance (*.instance): ";
     //std::cin >> instance;
-    instance="/home/hamed/git/RideSharing/Cargo_benchmark/problem/rs-bj5non-m5k-c3-d6-s10-x1.0.instance";
+    instance="/home/hamed/git/RideSharing/Cargo_benchmark/problem/rs-bj5non-m1k-c3-d6-s10-x1.0.instance";
     std::cout << instance;
   }
 

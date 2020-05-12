@@ -13,7 +13,7 @@ LDFLAGS        += $(shell $(PYTHON_CONFIG) --libs)
 # ------------------------------------------------------------------------------
 
 CXX = g++
-CFLAGS = -Wall -Wextra -std=c++11 -O3 -g -c -I$(INCLUDE_DIR) -o $@
+CFLAGS = -Wall -Wextra -std=c++11 -O1 -g -c -I$(INCLUDE_DIR) -o $@
 
 CFLAGS       += $(PYTHON_INCLUDE)
 

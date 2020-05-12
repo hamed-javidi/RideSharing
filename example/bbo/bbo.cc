@@ -29,7 +29,7 @@ BBO::BBO(const std::string& name) : RSAlgorithm(name, false), grid_(10){
 	matched=false;
 
 	problemDimension=0;
-	this->batch_time() = 30;
+	this->batch_time() = 10;
 
 	for (uint8_t i = 1; i <= PopulationSize; ++i) {
 		mu.push_back((PopulationSize + 1 - i) / (double)(PopulationSize + 1)); // emigration rate
@@ -1065,11 +1065,16 @@ void BBO::bbo_body(){
 				checkVehileConsistencyInAllStructures(solutions[i], assignedRider[i], lookupVehicle[i], CandidateList[i]);
 	}
 }
-void BBO::DriverClustering(vec_t<Point> data, int k){
-	if(data.size()==0)
-		return;
-	 std::vector<sample_type> driver_pool,rider_pool;
-	 vec_t<unsigned long> driver_pool_label, rider_pool_label;
+uint64_t BBO::DriverClustering(uint16_t k){
+
+	// Step 1: Making pool of deivers
+
+	vec_t<Customer> customers = this->customers();
+	dict<Customer, vec_t<clusterId>> rider_info;
+	dict<MutableVehicleSptr, vec_t<clusterId>> driver_info;
+	if(driver_point.size()==0)
+		return 0;
+
 	 std::vector<sample_type> initial_centers;
 	 const kcentroid<kernel_type> centeroids;
 
@@ -1077,24 +1082,32 @@ void BBO::DriverClustering(vec_t<Point> data, int k){
 	kkmeans<kernel_type> kmeans_model(kc);
 	kmeans_model.set_number_of_centers(k);
 	sample_type m;
-	for(auto i : data){
+	for(auto i : driver_point){
 		m(0)=i.lat;
 		m(1)= i.lng;
 		driver_pool.push_back(m);
+
 	}
+
+	// Step 2: Clustering deivers
+
 	pick_initial_centers(k, initial_centers, driver_pool, kmeans_model.get_kernel());
 	kmeans_model.train(driver_pool,initial_centers);
-//	find_clusters_using_kmeans(driver_pool, initial_centers, k);
 
-//	for(const auto & it : initial_centers)
-//		centeroids.push_back(kmeans_model.get_kcentroid(i));
 
-	for(auto i : driver_pool)
-		driver_pool_label.push_back(kmeans_model(i));
+	for(int i=0; i < driver_pool.size(); ++i){
+		driver_pool_label.push_back(kmeans_model(driver_pool[i]));
+		if(grid_.select(driver_object_pool[i].id()) == nullptr)
+			throw;
+		driver_info[grid_.select(driver_object_pool[i].id())].push_back(kmeans_model(driver_pool[i]));
+
+	}
+
+	// Preparing to show the clustered drivers
 
 	for(int i=0; i<k ; i++){
 		vec_t<double> X, Y;
-		for(int j=0;j<driver_pool_label.size();j++)
+		for(size_t j=0;j<driver_pool_label.size();j++)
 			if(driver_pool_label[j] == i){
 				X.push_back(driver_pool[j](0));
 				Y.push_back(driver_pool[j](1));
@@ -1103,27 +1116,37 @@ void BBO::DriverClustering(vec_t<Point> data, int k){
 	}
 	plt::show();
 
-	for(const auto cust : this->customers()){
-		Point p = Cargo::node2pt(cust.orig());
-		m(0)=p.lat;
-		m(1)= p.lng;
-		rider_pool.push_back(m);
-		rider_pool_label.push_back(kmeans_model(m));
+	// Step 3: Finding the closest cluster for riders
 
-		p = Cargo::node2pt(cust.dest());
-		m(0)=p.lat;
-		m(1)= p.lng;
+	for(const auto cust : customers){
+		Point 	src = Cargo::node2pt(cust.orig()),
+				dest=Cargo::node2pt(cust.dest());
+		m(0)=src.lat;
+		m(1)= src.lng;
 		rider_pool.push_back(m);
+		rider_object_pool.push_back(cust);
 		rider_pool_label.push_back(kmeans_model(m));
+		rider_info[cust].push_back(kmeans_model(m));
+		rider_point.push_back(src);
+		m(0)=dest.lat;
+		m(1)= dest.lng;
+		rider_pool.push_back(m);
+		rider_object_pool.push_back(cust);
+		rider_pool_label.push_back(kmeans_model(m));
+		rider_info[cust].push_back(kmeans_model(m));
+		rider_point.push_back(dest);
 	}
+
+	// Preparing to show the clustered riders
+
 	for(int i=0; i<k ; i++){
 		vec_t<double> X, Y;
-		for(int j=0;j<driver_pool_label.size();j++)
+		for(size_t j=0;j<driver_pool_label.size();j++)
 			if(driver_pool_label[j] == i){
 				X.push_back(driver_pool[j](0));
 				Y.push_back(driver_pool[j](1));
 			}
-		for(int j=0;j<rider_pool_label.size();j++)
+		for(size_t j=0;j<rider_pool_label.size();j++)
 			if(rider_pool_label[j] == i){
 				X.push_back(rider_pool[j](0));
 				Y.push_back(rider_pool[j](1));
@@ -1132,14 +1155,138 @@ void BBO::DriverClustering(vec_t<Point> data, int k){
 	}
 	plt::show();
 
+	//Step 4 : group by riders and drivers to have one rider object or one driver object in each cluster
 
+	for(size_t i = 0; i < k; ++i){
+		dict<MutableVehicleSptr,Point> temp1;
+		clustered_drivers.push_back(temp1);
+		VehlId last_added_driver = 0;
+		for(size_t d = 0; d < driver_pool_label.size(); ++d){
+			if(driver_pool_label[d] == i && driver_object_pool[d].id() != last_added_driver){
+				last_added_driver = driver_object_pool[d].id();
+				if(grid_.select(driver_object_pool[d].id()) == nullptr)
+					throw;
+				clustered_drivers[i][grid_.select(driver_object_pool[d].id())] = driver_point[d];
+			}
+		}
+
+		dict<Customer,Point> temp2;
+		clustered_riders.push_back(temp2);
+		CustId last_added_rider = 0;
+		for(size_t r = 0; r < rider_pool_label.size(); ++r){
+			if(rider_pool_label[r] == i && rider_object_pool[r].id() != last_added_rider){
+				last_added_rider = rider_object_pool[r].id();
+				clustered_riders[i][rider_object_pool[r]] = rider_point[r];
+			}
+		}
+	}
+
+	// step 5: Applying timing constraint and capacity constraint
+
+
+	vec_t<dict<Customer, vec_t<MutableVehicleSptr>>> cand_list;
+	for(size_t i = 0; i < k; ++i){
+		dict<Customer, vec_t<MutableVehicleSptr>> temp;
+		cand_list.push_back(temp);
+		for(const auto & rider : clustered_riders[i]){
+			cand_list[i][rider.first]={};
+			for(const auto driver : clustered_drivers[i]){
+				if (driver.first->schedule().data().size() < 8) {
+					vec_t<Stop> sch;
+					vec_t<Wayp> rte;
+					DistInt cost = sop_insert(*driver.first, rider.first, sch, rte, Cargo::gtree()) - driver.first->route().cost();
+					if (chkcap(driver.first->capacity(), sch) && chktw(sch, rte)) {
+						cand_list[i][rider.first].push_back(driver.first);
+
+					}
+				}
+			}
+		}
+	}
+
+
+	//stepfig 6 : Combine all clusters togeter beside group by objects by riders' candidates
+
+
+	print<<"step 4.f"<<std::endl;
+
+	dict<Customer, vec_t<MutableVehicleSptr>> final_cand_list;
+	vec_t<MutableVehicleSptr> vecA, vecB;
+	for(const auto &cust : customers){
+		vecA = {};
+		for(size_t i = 0; i < k; ++i){
+			if(cand_list[i].count(cust) > 0 ){
+				vecB = cand_list[i].at(cust);
+				std::remove_copy_if(vecB.begin(), vecB.end(), back_inserter(vecA), Contained<MutableVehicleSptr>(vecA.begin(), vecA.end()));
+			}
+		}
+		final_cand_list[cust] = vecA;
+	}
+
+	//step 7: Choose the best candidate based on objective function
+
+	dict<Customer, MutableVehicleSptr> assignment;
+	uint64_t total_cost=0;
+	for(const auto record : final_cand_list){
+		vec_t<Stop> sch, best_sch;
+		vec_t<Wayp> rte, best_rte;
+		DistInt best_cost=INT32_MAX;
+		MutableVehicleSptr best_vehl;
+		DistInt cost=0;
+		for (const MutableVehicleSptr& cand : record.second) {
+			if (cand->schedule().data().size() < 10) {
+				cost = sop_insert(*cand, record.first, sch, rte, Cargo::gtree());
+				DistInt deviation = cost - cand->route().cost();
+				if (deviation < best_cost) {
+					if (chkcap(cand->capacity(), sch) && chktw(sch, rte)) {
+						best_vehl = cand;
+						best_sch = sch;
+						best_rte = rte;
+						best_cost = cost;   //I save total distance cost of this trip not deviation of this driver from his own trip.
+					}
+				}
+			}
+		}
+		if (best_vehl != nullptr) {
+			total_cost += cost;
+			assignment[record.first]=best_vehl;
+			print << "Matched " << record.first.id() <<", from cluster "<< rider_info.at(record.first)[0]<<" to cluster "<< rider_info.at(record.first)[1]<< " with driver ";
+			print << best_vehl->id();
+			print<<", from cluster "<< driver_info.at(best_vehl)[0]<<" to cluster "<< driver_info.at(best_vehl)[1] << std::endl;
+			this->assign({record.first.id()}, {}, best_rte, best_sch, *(best_vehl));
+		}
+		else
+			//adding trip distance of any unassigned rider
+			total_cost += get_shortest_path(record.first.orig(), record.first.dest());
+	}
+	return total_cost;
+
+}
+uint64_t BBO::ComputeBaseCost(){
+	uint64_t sum=0;
+	for(const auto &vehl : this->vehicles()){
+		sum += get_shortest_path(vehl.orig(),vehl.dest());
+	}
+	for(const auto & cust : this->customers()){
+		sum += get_shortest_path(cust.orig(),cust.dest());
+	}
+	return sum;
 }
 void BBO::match() {
 
 	this->reset_workspace();
-	print << "Batch #: " << (++(this->batchCounter)) << ", # of Riders: " << this->customers().size() << ", # of Drivers: "<< this->vehicles().size() << std::endl;
-	if(batchCounter == 2)
-		DriverClustering(driver_points,25);
+	//print << "Batch #: " << (++(this->batchCounter)) << ", # of Riders: " << this->customers().size() << ", # of Drivers: "<< this->vehicles().size() << std::endl;
+	(++(this->batchCounter));
+	if(batchCounter == 2){
+		print << "Number of drivers: " << this->vehicles().size() << std::endl;
+		print << "Number of riders: " << this->customers().size() << std::endl;
+		uint64_t base_cost = ComputeBaseCost();
+		uint64_t new_cost = DriverClustering(30);
+
+		print << "Base cost is: " << base_cost << std::endl;
+		print << "new cost is: " << new_cost << std::endl;
+		throw;
+	}
 	else
 		return;
 
@@ -1176,8 +1323,10 @@ void BBO::match() {
 void BBO::handle_vehicle(const Vehicle& vehl) {
 	this->grid_.insert(vehl);
 	if(clustering_mode){
-		driver_points.push_back(Cargo::node2pt(vehl.route().node_at(vehl.idx_last_visited_node())));
-		driver_points.push_back(Cargo::node2pt(vehl.dest()));
+		driver_point.push_back(Cargo::node2pt(vehl.route().node_at(vehl.idx_last_visited_node())));
+		driver_object_pool.push_back(vehl);
+		driver_point.push_back(Cargo::node2pt(vehl.dest()));
+		driver_object_pool.push_back(vehl);
 	}
 
 }
@@ -1186,7 +1335,7 @@ void BBO::listen(bool skip_assigned, bool skip_delayed) {
 	this->grid_.clear();
 
 	//Clustring part
-	driver_points.clear();
+	driver_point.clear();
 
 	RSAlgorithm::listen(skip_assigned, skip_delayed);
 }
