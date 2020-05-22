@@ -53,7 +53,7 @@ grasp.o: $(LIBCARGO) grasp/grasp.h grasp/grasp.cc
 
 greedy.o: $(LIBCARGO) greedy/greedy.h greedy/greedy.cc
 	$(CXX) $(CFLAGS) greedy/greedy.cc
-
+	
 kinetic_tree.o: $(LIBCARGO) kinetic_tree/kinetic_tree.h kinetic_tree/kinetic_tree.cc kinetic_tree/include/treeTaxiPath.h kinetic_tree/src/treeTaxiPath.cpp
 	$(CXX) $(CFLAGS) -Ikinetic_tree/include kinetic_tree/kinetic_tree.cc
 
