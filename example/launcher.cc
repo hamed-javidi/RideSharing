@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
                 << "Your selection (1-13): ";
 
       //std::cin >> selection;
-      selection = "5";
+      selection = "14";
       std::cout << "Path to rnet (*.rnet): ";
       //std::cin >> roadnetwork;
       roadnetwork = "/home/hamed/git/RideSharing/Cargo_benchmark/road/bj5.rnet";

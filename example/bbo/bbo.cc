@@ -4,6 +4,7 @@
 #include <queue>
 #include <tuple>
 #include <vector>
+#include <chrono>
 #include <array>
 #include <cstdint>
 #include <cstdlib>      // std::rand, std::srand
@@ -25,7 +26,7 @@ BBO::BBO(const std::string &name)
    NumberOfElites = maxNumberOfElites;
    PopulationSize = maxPopulationSize;
    matched = false;
-
+   print << "Vehicles' speed: " << Cargo::vspeed() << std::endl;
    problemDimension = 0;
    this->batch_time() = 30;
 
@@ -84,7 +85,8 @@ std::pair<bool, int> findInVector(const std::vector<T> &vecOfElements,
 }
 
 void BBO::doSort() {
-   print << std::endl << "SORTING..." << std::endl;
+   if (debugMode)
+      print << std::endl << "SORTING..." << std::endl;
    if (solutions.size() <= 1)
       return;
    sortedIdx.resize(solutionsCosts.size());
@@ -641,7 +643,7 @@ void BBO::commit() {
             print(MessageType::Warning) << "Rejected due to sync " << cid
                                         << " with " << cand->id() << std::endl;
       }
-      //checkSCH(0, cand);
+
    }
 }
 void BBO::solutionsCostUpdate() {
@@ -649,12 +651,17 @@ void BBO::solutionsCostUpdate() {
       if (solutionsCosts.size() <= (unsigned) indx)
          solutionsCosts.push_back(0);
       solutionsCosts[indx] = 0;
+
+      //Add current cost of each vehicle which is based on the its remaining route.
       for (const auto &i : solutions[indx]) {
          solutionsCosts[indx] += i.first->route().cost()
                - i.first->route().dist_at(i.first->idx_last_visited_node() + 1);
       }
+      //2x cost penalty for unassigned riders
       for (const auto &i : unassignedRider[indx]) {
-         solutionsCosts[indx] += 2 * get_shortest_path(i.orig(), i.dest());  //2x cost penalty for unassigned riders
+         solutionsCosts[indx] += 2 * Cargo::basecost(i.id());
+         //print << Cargo::basecost(i.id()) << std::endl;
+         //print << get_shortest_path(i.orig(), i.dest()) << std::endl;
       }
    }
 }
@@ -694,6 +701,10 @@ bool BBO::migrate_vehicle_based(
       vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> &tempSolutions,
       vec_t<dict<Customer, MutableVehicleSptr>> &tempAssignedRider,
       vec_t<vec_t<Customer>> &tempUnassignedRider) {
+   if (this->timeout(this->timeout_0)) {
+      print << "timed out" << std::endl;
+      return false;
+   }
    //In case of ROLL BACK migration
    bool commitChanges = 1;
    rollBackHistory rollBackHist;
@@ -713,9 +724,13 @@ bool BBO::migrate_vehicle_based(
    //create a new vehicle based on selected vehicle if it does not exist in the destination
 
    vec_t<Customer> copyRiders = { };
-   MutableVehicleSptr const copyVehl = lookupVehicle[popIndxDest].at(r->id());
-   rollBackHist[copyVehl] = std::make_tuple(copyVehl->schedule().data(),
-                                            copyVehl->route().data());
+
+   MutableVehicleSptr copyVehl = nullptr;
+   if (lookupVehicle[popIndxDest].count(r->id())) {
+      copyVehl = lookupVehicle[popIndxDest].at(r->id());
+      rollBackHist[copyVehl] = std::make_tuple(copyVehl->schedule().data(),
+                                               copyVehl->route().data());
+   }
    vec_t<Customer> alreadyAsssignRider = { }, reassignRiders = { },
          toBeMigratedRiders = { };
 
@@ -948,8 +963,11 @@ void BBO::bbo_init() {
    matchHist.clear();
    if (debugMode)
       print << std::endl << "Initializing...";
+//   for(const auto i : this->vehicles()){
+//         lookupVehicle.push_back();
+//   }
    bool hybridIter = false;
-   int hybridIterNum;
+   int hybridIterNum = 0;
    if (hybridInit)
       hybridIterNum = PopulationSize
             - int(PopulationSize * (hybridInitPercent / 100.0));
@@ -960,7 +978,7 @@ void BBO::bbo_init() {
 
    std::srand(unsigned(std::time(0)));
    for (uint8_t indx = 0; indx < PopulationSize; ++indx) {
-      if (indx >= hybridIterNum)
+      if (indx >= hybridIterNum && hybridInit)
          hybridIter = true;
       auto customers = this->customers();
       std::random_shuffle(customers.begin(), customers.end());
@@ -971,13 +989,7 @@ void BBO::bbo_init() {
             CandidateList.push_back( { { cust, candidates } });
          else
             CandidateList[indx][cust] = candidates;
-         // TODO: Add to local vehicle lookup (we need it during bbo) it needs to be improved. It does an inefficiently work
-         for (const MutableVehicleSptr cand : candidates) {
-            if (indx >= lookupVehicle.size())
-               lookupVehicle.push_back( { { cand->id(), cand } });
-            else
-               lookupVehicle[indx][cand->id()] = cand;
-         }
+
          bool matched = false;
          MutableVehicleSptr cand;
 
@@ -1151,13 +1163,16 @@ void BBO::bbo_body() {
 }
 void BBO::match() {
 
-   static std::array<float, 63> batch_improvement = { };
-
    this->reset_workspace();
 
    print << "Batch #: " << (++(this->batchCounter)) << ", requests: "
          << this->customers().size() << std::endl;
+   auto t_init_0 = hiclock::now();
    bbo_init();
+   auto t_init_1 = hiclock::now();
+   print(MessageType::Info)
+         << "initial time: "
+         << std::round(dur_milli(t_init_1 - t_init_0).count()) << std::endl;
 //	if(debugMode){
 //		solution_show();
 //		int sum[PopulationSize]={0};
@@ -1185,24 +1200,17 @@ void BBO::match() {
       solution_show();
    }
    init_cost = solutionsCosts[0];
+   t_init_0 = hiclock::now();
    bbo_body();
+   t_init_1 = hiclock::now();
+   print(MessageType::Info)
+         << "BBO's body time: "
+         << std::round(dur_milli(t_init_1 - t_init_0).count()) << std::endl;
    batch_improvement[batchCounter] = (1
          - ((double) solutionsCosts[0] / init_cost)) * 100;
    commit();
    print << "batch_improvement of " << this->batchCounter << " is: "
          << batch_improvement.back() << std::endl;
-   print << "The improvemnet of each batch:" << std::endl;
-   if (batchCounter >= 63) {
-      for (uint16_t i = 0; i < generation_improvement.size(); ++i) {
-         std::cout << "Batch " << i << ": ";
-         for (uint16_t j = 0; j < generation_improvement[i].size(); ++j)
-            std::cout << generation_improvement[i][j] << "\t";
-         std::cout << std::endl;
-      }
-      std::cout << "Batches improvement: " << std::endl;
-      for (const auto &i : batch_improvement)
-         std::cout << i << "\t";
-   }
 
    //Last step: commit to database
 }
@@ -1217,6 +1225,16 @@ void BBO::listen(bool skip_assigned, bool skip_delayed) {
 }
 
 void BBO::end() {
+   print << "The improvemnet of each batch:" << std::endl;
+   for (uint16_t i = 0; i < generation_improvement.size(); ++i) {
+      std::cout << "Batch " << i << ": ";
+      for (uint16_t j = 0; j < generation_improvement[i].size(); ++j)
+         std::cout << generation_improvement[i][j] << "\t";
+      std::cout << std::endl;
+   }
+   std::cout << "Batches improvement: " << std::endl;
+   for (const auto &i : batch_improvement)
+      std::cout << i << "\t";
 
    RSAlgorithm::end();
 }
@@ -1238,10 +1256,28 @@ void BBO::reset_workspace() {
    lookupVehicle.clear();
    local_grid = { };
 
+   // initial structures with zero value
+
+   dict<Customer, MutableVehicleSptr> assignedRider_t;
+   dict<MutableVehicleSptr, vec_t<Customer>> solutions_t;
+   vec_t<Customer> unassignedRider_t;
+   dict<Customer, vec_t<MutableVehicleSptr>> CandidateList_t;
+   dict<VehlId, MutableVehicleSptr> lookupVehicle_t;
+
+   for (int i = 0; i < PopulationSize; ++i) {
+      solutions.push_back(solutions_t);
+      solutionsCosts.push_back(0);
+      assignedRider.push_back(assignedRider_t);
+      unassignedRider.push_back(unassignedRider_t);
+      CandidateList.push_back(CandidateList_t);
+      lookupVehicle.push_back(lookupVehicle_t);
+   }
+
    this->best_cost = InfInt;
    this->sch = best_sch = { };
    this->rte = best_rte = { };
    this->best_vehl = nullptr;
    this->matched = false;
+   this->timeout_0 = hiclock::now();
 }
 

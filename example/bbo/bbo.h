@@ -65,9 +65,9 @@ class BBO : public RSAlgorithm {
 
  private:
 
-   const bool debugMode = 1, rollBack = 1, hybridInit = 1;
+   const bool debugMode = 0, rollBack = 1, hybridInit = 0;
 
-   static const uint8_t hybridInitPercent = 5,  //max is 100
+   static const uint8_t hybridInitPercent = 10,  //max is 100
          GenerationLimit = 10,		//max is 255
          maxNumberOfElites = 1,	//max is maxPopulationSize
          maxPopulationSize = 20;  //max is 255
@@ -88,6 +88,7 @@ class BBO : public RSAlgorithm {
    int problemDimension;
    vec_t<float> mu;
    vec_t<float> lambda;
+   std::array<float, 64> batch_improvement = { };
 
    vec_t<dict<Customer, MutableVehicleSptr>> assignedRider;
    vec_t<dict<Customer, MutableVehicleSptr>> elitesAssignedRider;
