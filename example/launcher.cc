@@ -121,28 +121,33 @@ int main(int argc, char **argv) {
          std::cout << "Too many arguments!" << std::endl;
          print_usage();
       }
-      std::cout << "Make a selection.\n" << "  Search Algorithms:\n"
-                << "    1) bilateral+               4) greedy\n"
-                << "    2) bilateral_arrangement    5) kinetic_tree\n"
-                << "    3) grabby                   6) nearest_neighbor\n"
-                << "  Join Algorithms:\n"
-                << "    7) grasp4                  10) sa100\n"
-                << "    8) grasp16                 11) trip_vehicle_grouping\n"
-                << "    9) sa50\n" << "  Other:\n"
-                << "    12) nearest_road			 13)T-share\n"
-                << "    14)BBO                     15)PSO\n" << "\n"
-                << "Your selection (1-13): ";
+      std::cout
+            << "Make a selection.\n"
+            << "Algorithms:\n"
+            //<< "    1) bilateral+               4) greedy\n"
+            //<< "    2) bilateral_arrangement    5) kinetic_tree\n"
+            //<< "    3) grabby                   6) nearest_neighbor\n"
+            // << "  Join Algorithms:\n"
+            //<< "    7) grasp4                  10) sa100\n"
+            //<< "    8) grasp16                 11) trip_vehicle_grouping\n"
+            //<< "    9) sa50\n" << "  Other:\n"
+            //<< "    12) nearest_road			 13)T-share\n"
+            << " 4) greedy\n"
+            << " 5) kinetic_tree\n" << " 10) Simulated Annealing\n"
+            << " 13) T-share\n" << " 14) BBO \n"
 
-      //std::cin >> selection;
-      selection = "14";
+            << "Your selection (Enter one of above number): ";
+
+      std::cin >> selection;
+      //selection = "14";
       std::cout << "Path to rnet (*.rnet): ";
       //std::cin >> roadnetwork;
-      roadnetwork = "/home/hamed/git/RideSharing/Cargo_benchmark/road/bj5.rnet";
+      roadnetwork = "Cargo_benchmark/road/bj5.rnet";
       std::cout << roadnetwork;
       std::cout << "Path to instance (*.instance): ";
       //std::cin >> instance;
       instance =
-            "/home/hamed/git/RideSharing/Cargo_benchmark/problem/rs-bj5non-m200-c3-d6-s10-x1.0.instance";
+            "Cargo_benchmark/problem/rs-bj5non-m200-c3-d6-s10-x1.0.instance";
       std::cout << instance;
    }
 
