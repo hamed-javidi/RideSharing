@@ -41,3 +41,5 @@ Installation Steps:
     2. cd example
     3. make
     4.  .\launcher
+    
+8- You can see the BBO algorithm in this path: example/BBO 
