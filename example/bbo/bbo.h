@@ -65,9 +65,9 @@ class BBO : public RSAlgorithm {
 
  private:
 
-   const bool debugMode = 0, rollBack = 1, hybridInit = 1, showSolutions = 1;
+   const bool debugMode = 0, rollBack = 1, hybridInit = 0;
 
-   static const uint8_t hybridInitPercent = 85,  //max is 100
+   static const uint8_t hybridInitPercent = 10,  //max is 100
          GenerationLimit = 10,		//max is 255
          maxNumberOfElites = 1,	//max is maxPopulationSize
          maxPopulationSize = 20;  //max is 255
@@ -101,8 +101,8 @@ class BBO : public RSAlgorithm {
    vec_t<dict<MutableVehicleSptr, vec_t<Customer>>> elitesSolutions;
    vec_t<dict<VehlId, MutableVehicleSptr>> lookupVehicle;
    vec_t<dict<VehlId, MutableVehicleSptr>> elitesLookupVehicle;
-   vec_t<double> solutionsCosts;
-   vec_t<double> elitesCosts;
+   vec_t<long> solutionsCosts;
+   vec_t<long> elitesCosts;
    std::array<std::array<float, GenerationLimit + 1>, 63> generation_improvement;
 
    //dict<CustId, Customer> cust_lookup;
@@ -167,17 +167,8 @@ class BBO : public RSAlgorithm {
                                     vec_t<MutableVehicleSptr> &candidates);
    bool matched;
    tick_t timeout_0;
-   //****************** overal cost function variables**************************
+
    long init_cost;
-   dict<CustId, DistInt> rider_route_cost;
-
-   //*******************Variables and function for save/load first pop*****************
-   void SaveSolutions();
-   MutableVehicleSptr load_matched_driver(int solution_number, CustId);
-   void LoadSolutions();
-
-   vec_t<dict<Customer, MutableVehicleSptr>> reused_assignedRider;
-   vec_t<vec_t<Customer>> reused_unassignedRider;
 
    void reset_workspace();
    float rand() {
