@@ -37,7 +37,7 @@ Installation Steps:
 
 6- Open terminal and go to the RideSharing-master folder.
 7- Run this command in the terminal: 
-    make
-    cd example
-    make
-    .\launcher
+    1. make
+    2. cd example
+    3. make
+    4.  .\launcher
