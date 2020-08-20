@@ -8,7 +8,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>      // std::rand, std::srand
-
+#include <fstream>
 #include "libcargo.h"
 #include "bbo.h"
 #include "libcargo/distance.h"
@@ -654,15 +654,28 @@ void BBO::solutionsCostUpdate() {
 
       //Add current cost of each vehicle which is based on the its remaining route.
       for (const auto &i : solutions[indx]) {
+         //solutionsCosts[indx] += i.first->route().cost() - i.first->route().dist_at(i.first->idx_last_visited_node() + 1);
+
+         //computing DOV using curcost - prevcost
          solutionsCosts[indx] += i.first->route().cost()
-               - i.first->route().dist_at(i.first->idx_last_visited_node() + 1);
+               - this->grid_.select(i.first->id())->route().cost();
+
       }
-      //2x cost penalty for unassigned riders
-      for (const auto &i : unassignedRider[indx]) {
-         solutionsCosts[indx] += 2 * Cargo::basecost(i.id());
-         //print << Cargo::basecost(i.id()) << std::endl;
-         //print << get_shortest_path(i.orig(), i.dest()) << std::endl;
+      long total_cost = 0;
+      for (const auto r : this->customers()) {
+         total_cost += rider_route_cost[r.id()];
       }
+      if (total_cost != 0 && this->customers().size() != 0)
+         solutionsCosts[indx] = (solutionsCosts[indx] / total_cost)
+               + unassignedRider[indx].size() / this->customers().size();
+      else
+         solutionsCosts[indx] = 0;
+//      //2x cost penalty for unassigned riders
+//      for (const auto &i : unassignedRider[indx]) {
+//         solutionsCosts[indx] += 2 * Cargo::basecost(i.id());
+//         //print << Cargo::basecost(i.id()) << std::endl;
+//         //print << get_shortest_path(i.orig(), i.dest()) << std::endl;
+//      }
    }
 }
 
@@ -705,7 +718,7 @@ bool BBO::migrate_vehicle_based(
       print << "timed out" << std::endl;
       return false;
    }
-   //In case of ROLL BACK migration
+//In case of ROLL BACK migration
    bool commitChanges = 1;
    rollBackHistory rollBackHist;
    if (debugMode) {
@@ -721,16 +734,14 @@ bool BBO::migrate_vehicle_based(
    if (debugMode)
       print << "	S:" << popIndxSrc << " D:" << popIndxDest << " Vehl:"
             << r->id() << std::endl;
-   //create a new vehicle based on selected vehicle if it does not exist in the destination
+//create a new vehicle based on selected vehicle if it does not exist in the destination
 
    vec_t<Customer> copyRiders = { };
 
-   MutableVehicleSptr copyVehl = nullptr;
-   if (lookupVehicle[popIndxDest].count(r->id())) {
-      copyVehl = lookupVehicle[popIndxDest].at(r->id());
-      rollBackHist[copyVehl] = std::make_tuple(copyVehl->schedule().data(),
-                                               copyVehl->route().data());
-   }
+   MutableVehicleSptr const copyVehl = lookupVehicle[popIndxDest].at(r->id());
+   rollBackHist[copyVehl] = std::make_tuple(copyVehl->schedule().data(),
+                                            copyVehl->route().data());
+
    vec_t<Customer> alreadyAsssignRider = { }, reassignRiders = { },
          toBeMigratedRiders = { };
 
@@ -738,7 +749,7 @@ bool BBO::migrate_vehicle_based(
       for (auto const &i : t_tempSolution[popIndxSrc][r])
          copyRiders.push_back(i);
 
-   // 1- Does the	selected rider's vehicle exist in the target solution?
+// 1- Does the	selected rider's vehicle exist in the target solution?
    if (t_tempSolution[popIndxDest].count(copyVehl) == 0) {
 
       //1.NO: Insert the selected vehicle without its riders as an emigrate feature to the target solution.
@@ -748,7 +759,7 @@ bool BBO::migrate_vehicle_based(
       t_tempSolution[popIndxDest][copyVehl] = { };
    }
 
-   //1-Yes: Choose some riders from the selected vehicle as emigrate riders
+//1-Yes: Choose some riders from the selected vehicle as emigrate riders
    int xx = copyRiders.size();
    if (debugMode)
       if (xx == 0) {
@@ -757,13 +768,13 @@ bool BBO::migrate_vehicle_based(
          throw;
       }
 
-   //TODO uncomment the below line to have a random number of selected riders
-   //ridersRandomlySelector(popIndxSrc, r, copyRiders);
+//TODO uncomment the below line to have a random number of selected riders
+//ridersRandomlySelector(popIndxSrc, r, copyRiders);
    if (debugMode)
       print << xx << " out of " << copyRiders.size() << " rider is selected"
             << std::endl;
 
-   //fill reassign rider and AlreadyAssignRider
+//fill reassign rider and AlreadyAssignRider
    for (auto const &i : t_tempSolution[popIndxDest][copyVehl]) {
       bool found = 0;
       for (auto const &j : copyRiders) {
@@ -806,9 +817,9 @@ bool BBO::migrate_vehicle_based(
       print << std::endl;
       print << "	step 2" << std::endl;
    }
-   //2. Has any of the copy riders been assigned to some vehicles else in the target solution?
+//2. Has any of the copy riders been assigned to some vehicles else in the target solution?
 
-   //2.YES, deassign them from those vehicles in the target solution
+//2.YES, deassign them from those vehicles in the target solution
    for (auto const &i : toBeMigratedRiders) {
       MutableVehicleSptr cand = nullptr;
       if (t_tempAssignedRider[popIndxDest].count(i) > 0)
@@ -858,8 +869,8 @@ bool BBO::migrate_vehicle_based(
    }
    if (debugMode)
       print << "	step 3" << std::endl;
-   // 3. Does some riders else already assigned to the selected vehicle in the target solution?
-   //3. YES: Deassign them and put them to a waiting list to reassign later
+// 3. Does some riders else already assigned to the selected vehicle in the target solution?
+//3. YES: Deassign them and put them to a waiting list to reassign later
 
    for (const auto &i : reassignRiders) {
       //MutableVehicleSptr cand=t_tempAssignedRider[popIndxDest][i];
@@ -896,7 +907,7 @@ bool BBO::migrate_vehicle_based(
    }
    if (debugMode)
       print << "	step 3-2" << std::endl;
-   //3. No: Assign the selected riders to the selected vehicle in the target solution
+//3. No: Assign the selected riders to the selected vehicle in the target solution
    for (const auto &i : toBeMigratedRiders) {
       sop_insert(copyVehl, i, sch, rte);
       if (debugMode)
@@ -916,9 +927,9 @@ bool BBO::migrate_vehicle_based(
    }
    if (debugMode)
       print << "	step 4" << std::endl;
-   //4. Is the waiting list empty?
+//4. Is the waiting list empty?
 
-   //4. NO: Reassign them to vehicles which the best candidate in the target solution
+//4. NO: Reassign them to vehicles which the best candidate in the target solution
    for (auto const &i : reassignRiders)
       if (!Greedy_Assignment(popIndxDest, i, t_tempSolution,
                              t_tempAssignedRider, t_tempUnassignedRider,
@@ -960,25 +971,47 @@ bool BBO::migrate_vehicle_based(
 }
 
 void BBO::bbo_init() {
+
    matchHist.clear();
    if (debugMode)
       print << std::endl << "Initializing...";
-//   for(const auto i : this->vehicles()){
-//         lookupVehicle.push_back();
-//   }
+
    bool hybridIter = false;
    int hybridIterNum = 0;
    if (hybridInit)
       hybridIterNum = PopulationSize
             - int(PopulationSize * (hybridInitPercent / 100.0));
-   for (int indx = 0; indx < PopulationSize; ++indx)
+
+   //*********************************************************
+   //Do not change this
+   for (size_t indx = 0; indx < PopulationSize; ++indx)
       local_grid.push_back(this->grid_);  // make a deep copy
-   //1- filling CandidateList for each rider
-   //we need to generate some population by using any algorithm or randomly
+   //**********************************************************
+
+   for (size_t indx = 0; indx < PopulationSize; ++indx) {
+
+      for (const auto i : local_grid[indx].all()) {
+         if (indx >= lookupVehicle.size())
+            lookupVehicle.push_back( { { i->id(), i } });
+         else
+            lookupVehicle[indx][i->id()] = i;
+      }
+
+   }
+   //batchCounter++;
+   if (batchCounter == 1)
+      LoadSolutions();
+//filing rider_route_cost table
+   for (const auto r : this->customers()) {
+      if (rider_route_cost.count(r.id()) == 0)
+         rider_route_cost[r.id()] = Cargo::gtree().search(r.orig(), r.dest());
+   }
+//1- filling CandidateList for each rider
+//we need to generate some population by using any algorithm or randomly
 
    std::srand(unsigned(std::time(0)));
    for (uint8_t indx = 0; indx < PopulationSize; ++indx) {
-      if (indx >= hybridIterNum && hybridInit)
+      if (indx < hybridIterNum && hybridInit)
          hybridIter = true;
       auto customers = this->customers();
       std::random_shuffle(customers.begin(), customers.end());
@@ -991,16 +1024,33 @@ void BBO::bbo_init() {
             CandidateList[indx][cust] = candidates;
 
          bool matched = false;
-         MutableVehicleSptr cand;
+         MutableVehicleSptr cand = nullptr;
 
          if (hybridIter == 0) {
             std::random_shuffle(candidates.begin(), candidates.end());
-            cand = initRandomely(cust, candidates);
+            if (batchCounter == 1) {
+               if (reused_assignedRider[indx].count(cust)) {
+                  cand = reused_assignedRider[indx].at(cust);
+                  candidates.clear();
+                  candidates.push_back(cand);
+                  cand = initRandomely(cust, candidates);
+               }
+
+            } else
+               cand = initRandomely(cust, candidates);
             if (cand != nullptr) {
                matched = true;
             }
          } else {  //hybrid init mode
-            cand = initUsingGreedy(cust, candidates);
+            if (batchCounter == 1) {
+               if (reused_assignedRider[indx].count(cust)) {
+                  cand = reused_assignedRider[indx].at(cust);
+                  candidates.clear();
+                  candidates.push_back(cand);
+                  cand = initRandomely(cust, candidates);
+               }
+            } else
+               cand = initUsingGreedy(cust, candidates);
             if (cand != nullptr) {
                matched = true;
             }
@@ -1032,6 +1082,10 @@ void BBO::bbo_init() {
 //
 //	}
    solutionsCostUpdate();
+   //batchCounter--;
+   if (batchCounter == 1) {
+      //SaveSolutions();
+   }
 
 }
 
@@ -1161,6 +1215,78 @@ void BBO::bbo_body() {
 
    }
 }
+
+void BBO::LoadSolutions() {
+   std::fstream fs;
+   try {
+      fs.open("init_pop_assigned.txt", std::fstream::in);
+   } catch (std::exception const &e) {
+      print << "There was an error: " << e.what() << std::endl;
+   }
+   for (int i = 0; i < 20; ++i) {
+      int rider_id = 0, driver_id = 0, count = 0;
+      dict<Customer, MutableVehicleSptr> table;
+      fs >> count;
+      for (int j = 0; j < count; ++j) {
+         fs >> rider_id;
+         fs >> driver_id;
+         table[*std::find_if(customers().begin(), customers().end(),
+                             [rider_id](Customer c) {
+                                return c.id() == rider_id;
+                             })] = lookupVehicle[i].at(driver_id);
+      }
+      reused_assignedRider.push_back(table);
+   }
+   fs.close();
+   try {
+      fs.open("init_pop_unassigned.txt", std::fstream::in);
+   } catch (std::exception const &e) {
+      print << "There was an error: " << e.what() << std::endl;
+   }
+   for (int i = 0; i < 20; ++i) {
+      int rider_id = 0, count = 0;
+      fs >> count;
+      vec_t<Customer> temp;
+      for (int j = 0; j < count; ++j) {
+         fs >> rider_id;
+         temp.push_back(
+               *std::find_if(customers().begin(), customers().end(),
+                             [rider_id](Customer c) {
+                                return c.id() == rider_id;
+                             }));
+      }
+      reused_unassignedRider.push_back(temp);
+   }
+   fs.close();
+}
+void BBO::SaveSolutions() {
+   std::fstream fs;
+   try {
+      fs.open("init_pop_assigned.txt", std::fstream::out);
+   } catch (std::exception const &e) {
+      print << "There was an error: " << e.what() << std::endl;
+   }
+   for (auto &i : assignedRider) {
+      fs << i.size() << '\n';
+      for (auto &kv : i) {
+         fs << kv.first.id() << '\n' << kv.second->id() << '\n';
+      }
+   }
+   fs.close();
+   try {
+      fs.open("init_pop_unassigned.txt", std::fstream::out);
+   } catch (std::exception const &e) {
+      print << "There was an error: " << e.what() << std::endl;
+   }
+   for (auto &i : unassignedRider) {
+      fs << i.size() << '\n';
+      for (auto &j : i) {
+         fs << j.id() << '\n';
+      }
+   }
+   fs.close();
+}
+
 void BBO::match() {
 
    this->reset_workspace();
@@ -1197,8 +1323,9 @@ void BBO::match() {
                                                lookupVehicle[i],
                                                CandidateList[i]);
 
-      solution_show();
    }
+   if (showSolutions)
+      solution_show();
    init_cost = solutionsCosts[0];
    t_init_0 = hiclock::now();
    bbo_body();
@@ -1212,7 +1339,7 @@ void BBO::match() {
    print << "batch_improvement of " << this->batchCounter << " is: "
          << batch_improvement.back() << std::endl;
 
-   //Last step: commit to database
+//Last step: commit to database
 }
 void BBO::handle_vehicle(const Vehicle &vehl) {
    this->grid_.insert(vehl);
@@ -1256,7 +1383,7 @@ void BBO::reset_workspace() {
    lookupVehicle.clear();
    local_grid = { };
 
-   // initial structures with zero value
+// initial structures with zero value
 
    dict<Customer, MutableVehicleSptr> assignedRider_t;
    dict<MutableVehicleSptr, vec_t<Customer>> solutions_t;
@@ -1280,4 +1407,5 @@ void BBO::reset_workspace() {
    this->matched = false;
    this->timeout_0 = hiclock::now();
 }
+
 
