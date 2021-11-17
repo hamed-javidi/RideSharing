@@ -42,4 +42,9 @@ Installation Steps:
     3. make
     4.  .\launcher
     
-8- You can see the BBO algorithm in this path: example/BBO 
+8- You can see the BBO algorithm in this path: example/BBO
+
+Refrence:
+Please refrence the below papers if you are using this project:
+1- H Javidi, D Simon, L Zhu, Y Wang, A multi-objective optimization framework for online ridesharing systems, IEEE International Conference on Big Data and Smart Computing (BigComp)
+2- James J. Pan, Guoliang Li, Juntao Hu, Ridesharing: simulator, benchmark, and evaluation, Proceedings of the VLDB EndowmentVolume 12Issue 10June 2019 pp 1085–1098
